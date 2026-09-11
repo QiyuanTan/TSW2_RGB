@@ -1,0 +1,46 @@
+name: Agent task
+description: Implementation-ready task for one coding agent
+title: "[Task] "
+labels: ["agent-ready"]
+body:
+  - type: markdown
+    attributes:
+      value: "Use a numbered canonical body from `issues/` when one exists."
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome
+      description: One externally verifiable result.
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: In scope / out of scope
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Required artifacts and linked specifications
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Objective, testable completion conditions.
+    validations:
+      required: true
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification commands and evidence
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies and parallel-work boundaries
+    validations:
+      required: true
