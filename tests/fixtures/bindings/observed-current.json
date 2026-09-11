@@ -1,0 +1,13 @@
+{
+  "fixture_schema": 1,
+  "capture": "observed-current",
+  "source_path": "%USERPROFILE%/Documents/My Games/TrainSimWorld2EGS/Saved/SaveGames/PP_aps.sav",
+  "save_class": "/Script/TS2Prototype.PlayerProfile",
+  "engine": "++UE4+Release-4.26",
+  "authority_proven": false,
+  "records": [
+    {"identifier": "Reverser", "increase": [{"key_name": "W", "shift": false, "ctrl": false, "alt": false, "cmd": false}], "decrease": [{"key_name": "S", "shift": false, "ctrl": false, "alt": false, "cmd": false}]},
+    {"identifier": "KeyboardToggleDoorsLeft", "increase": [{"key_name": "Y", "shift": false, "ctrl": false, "alt": false, "cmd": false}], "decrease": []},
+    {"identifier": "KeyboardToggleDoorsRight", "increase": [{"key_name": "U", "shift": false, "ctrl": false, "alt": false, "cmd": false}], "decrease": []}
+  ]
+}

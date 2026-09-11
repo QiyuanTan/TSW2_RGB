@@ -1,0 +1,17 @@
+{
+  "catalog_schema": 1,
+  "status": "candidate-pending-controlled-rebind",
+  "actions": [
+    {"raw_identifier": "Reverser", "direction": "increase", "semantic_action": "reverser.increase"},
+    {"raw_identifier": "Reverser", "direction": "decrease", "semantic_action": "reverser.decrease"},
+    {"raw_identifier": "KeyboardToggleDoorsLeft", "direction": "increase", "semantic_action": "door.left.toggle"},
+    {"raw_identifier": "KeyboardToggleDoorsRight", "direction": "increase", "semantic_action": "door.right.toggle"},
+    {"raw_identifier": "Headlights", "direction": "increase", "semantic_action": "headlights.increase"},
+    {"raw_identifier": "Headlights", "direction": "decrease", "semantic_action": "headlights.decrease"},
+    {"raw_identifier": "Wipers", "direction": "increase", "semantic_action": "wipers.increase"},
+    {"raw_identifier": "Wipers", "direction": "decrease", "semantic_action": "wipers.decrease"},
+    {"raw_identifier": "Alerter", "direction": "increase", "semantic_action": "safety.acknowledge"},
+    {"raw_identifier": "AWS_Reset", "direction": "increase", "semantic_action": "safety.acknowledge"},
+    {"raw_identifier": "PZB_Acknowledge", "direction": "increase", "semantic_action": "safety.acknowledge"}
+  ]
+}
