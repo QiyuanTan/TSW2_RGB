@@ -1,12 +1,12 @@
 # TSW2 binding-source discovery
 
-Status: **partially validated, still blocked on the remaining edge/profile experiments below**. This document records verified observations, not a completed authority decision.
+Status: **partially validated, still blocked on the remaining edge experiments below**. This document records verified observations and the narrowed MVP support envelope.
 
 ## Scope and evidence boundary
 
 The issue requires proof that a source is authoritative by changing `KeyboardToggleDoorsLeft`, `KeyboardToggleDoorsRight`, and one reverser binding in TSW2 and correlating the writes. The initial two profile files had equivalent required records. On 2026-09-11 a person operating the native game UI swapped left/right doors and reverser increase/decrease while a read-only watcher observed the save directory. The resulting `PP_aps.sav` changes encode all three UI changes exactly, proving that file is an authoritative persistence source for this tested profile/build.
 
-The experiment also proved that a reader cannot use `VehicleMappings` alone: TSW2 stores action overrides and vehicle-control overrides in different properties, and retains a materialized/base mapping array. Secondary/unbound semantics, active-profile selection, and locale behavior remain gated, so issue 05 must not claim general support yet.
+The experiment also proved that a reader cannot use `VehicleMappings` alone: TSW2 stores action overrides and vehicle-control overrides in different properties, and retains a materialized/base mapping array. The MVP is now explicitly limited to one configured/discovered profile, one UI binding per action/direction, and US-layout keyboards. Unbound and duplicate-key behavior plus restart persistence remain gated.
 
 ## Environment
 
@@ -28,7 +28,7 @@ Paths below deliberately use environment variables and contain no username or ac
 | `%USERPROFILE%\Documents\My Games\TrainSimWorld2EGS\Saved\SaveGames\BAK_aps.sav` | Older backup with the same required binding records. | Backup candidate only |
 | `%USERPROFILE%\Documents\My Games\TrainSimWorld2EGS\Saved\Config\WindowsNoEditor\Input.ini` | Two-byte empty file (CRLF) at observation time. | Rejected for this capture |
 
-The current profile file contains a `SlotName` equal to its filename stem and a `PlayerProfileName`; the latter is personal data and is not retained in fixtures. This establishes the current file's self-identification but does **not** prove how TSW2 chooses among multiple profiles, whether the naming convention is stable, or whether another store/build uses it.
+The current profile file contains a `SlotName` equal to its filename stem and a `PlayerProfileName`; the latter is personal data and is not retained in fixtures. For the single-profile MVP, discover exactly one matching `PP_*.sav` whose embedded `SlotName` matches its filename stem, or accept an explicitly configured path. Zero or multiple matches are an actionable configuration error; the reader must not guess which profile is active. Multi-profile selection and other store/build naming conventions are out of scope.
 
 ## Observed binary shape
 
@@ -53,7 +53,7 @@ Observed mapping properties are:
 - `CustomVehicle: Array<VirtualHIDInputConfig>`. Controlled vehicle-input changes appear here as full directional overrides.
 - `VehicleMappings: Array<VirtualHIDInputConfig>`. This retains/materializes base/effective-looking vehicle data, but the controlled experiment produced a contradictory duplicate reverser value here; it is not independently authoritative.
 
-Apply `CustomActionMappings.NewBinding` for action identifiers and `CustomVehicle` for vehicle controls. Do not read `VehicleMappings` as the sole source. Active-profile selection remains unproven.
+Apply `CustomActionMappings.NewBinding` for action identifiers and `CustomVehicle` for vehicle controls. Do not read `VehicleMappings` as the sole source. The single-profile resolution rule above deliberately avoids unproven active-profile inference.
 
 The sanitized transcriptions in `tests/fixtures/bindings/` contain only the three required action records. In both captures:
 
@@ -76,9 +76,9 @@ These values are evidence, not application defaults.
 This contract is sufficient to describe the next experiment, but remains provisional until that experiment succeeds.
 
 1. Treat `Identifier` plus direction (`increase` or `decrease`) as the raw action identity. Map only catalogued pairs to stable semantic actions. Retain unknown identifiers as diagnostics and ignore them for lighting.
-2. For `CustomActionMappings`, replace the matching old action chord with `NewBinding`; retain ordering. For `CustomVehicle`, the matching identifier's directional arrays override the corresponding vehicle mapping. Treat every chord array element as a binding candidate. Do not label array positions “primary” or “secondary” until the UI-to-array ordering is observed.
+2. For `CustomActionMappings`, replace the matching old action chord with `NewBinding`; retain ordering. For `CustomVehicle`, the matching identifier's directional arrays override the corresponding vehicle mapping. The supported UI contract is one binding per action/direction. If a file nevertheless contains multiple chords, preserve all supported entries in serialized order as forward-compatible input; no primary/secondary UI semantics are claimed.
 3. Represent a chord as `{ key_name, modifiers }`. `key_name` is the serialized Unreal `FKey` name, not a localized label or display character.
-4. Normalize supported keyboard keys at the adapter boundary to USB HID usage identifiers plus modifiers. For example, serialized letter names describe physical key identities; layout-specific characters must come from the OS layout only for display. Core semantic mappings never contain a physical default.
+4. Normalize supported keyboard keys at the adapter boundary to USB HID keyboard usages plus modifiers using the US physical layout. Serialized Unreal `FKey` names are identities, not localized characters. Non-US layout display/translation is out of MVP scope. Core semantic mappings never contain a physical default.
 5. An empty chord array is the observed candidate representation for “no binding in that direction”; a UI unbind must still prove this. A serialized `KeyName=None` must be treated as unsupported/unbound, not as a key.
 
 `tests/fixtures/bindings/action-catalog.json` is the candidate MVP raw-to-semantic catalog. It intentionally contains no physical keys.
@@ -87,7 +87,7 @@ This contract is sufficient to describe the next experiment, but remains provisi
 
 These are safety requirements, not claims about unobserved TSW2 writes.
 
-- Primary/secondary: emit every supported chord in stable serialized order; deduplicate identical normalized chords while reporting a diagnostic.
+- Multiple serialized chords: tolerate and emit every supported chord in stable order, deduplicating identical normalized chords with a diagnostic; the MVP exposes no secondary-binding UI semantics.
 - Unbound: emit no physical key and an informational diagnostic.
 - Duplicate physical key across actions: retain both semantic bindings; collision resolution belongs to `BindingResolver`, not the reader.
 - Unknown action: retain enough raw identity for a diagnostic, but do not invent a semantic action.
@@ -114,19 +114,17 @@ The timing values remain conservative starting parameters rather than performanc
 
 ## Bounded experiment required to unblock ADR-003
 
-Use a supported, legitimately installed TSW2 build whose exact game version/store can be recorded.
+Use the same installed build, identified by its UE version header, executable timestamp, and locally retained executable hash; record the store-shaped user directory without claiming independently unavailable package provenance.
 
 1. Close TSW2. Inventory candidate files with relative path, size, SHA-256, and nanosecond-capable timestamp. Copy candidates to an external scratch directory; never commit whole saves.
 2. Start a filesystem trace on the `Saved` directory that records create/write/rename/delete events and periodically records candidate metadata.
-3. Launch TSW2, create/select a second named test profile, and record which file changes. The single-profile case and three required swaps are already captured.
-4. In the keyboard settings UI, add a secondary binding if the UI supports it, then apply/back. Capture the UI and changed files.
-5. Unbind one binding, deliberately duplicate one key on two actions if allowed, and capture after each apply.
-6. Switch profiles and repeat one change to establish active-profile selection.
-7. With a non-US layout active, bind the physical key whose legend/produced character differs and compare serialized `KeyName` with the UI label.
-8. Diff parsed property trees and raw byte ranges. Confirm unrelated profile data is excluded from fixtures. Repeat once after game restart to prove persistence and selection.
-9. Record event timing and test the proposed debounce algorithm against every write trace.
+3. Launch TSW2 with the same single test profile. The single-profile case and three required swaps are already captured.
+4. Unbind one binding through the UI and capture the changed file.
+5. Deliberately assign one key to two actions if the UI permits it; record whether TSW2 rejects, swaps, replaces, or persists the collision.
+6. Diff parsed property trees and raw byte ranges. Confirm unrelated profile data is excluded from fixtures. Restart the game and verify the selected bindings persist in both UI and source.
+7. Confirm after restart that the existing debounce/content-revision strategy detects any profile write without publishing a partial or identical snapshot.
 
-The required three-change correlation and write completion are now demonstrated. Success still requires primary/secondary ordering, unbound form, duplicates, layout behavior, and multi-profile selection. If any point is ambiguous, keep ADR-003 blocked and narrow the next experiment to that ambiguity.
+The required three-change correlation and write completion are now demonstrated. Secondary-binding UI behavior, multi-profile selection, and non-US layouts are explicitly outside the supported MVP envelope. Success still requires unbound form, duplicate behavior, and restart persistence. If any point is ambiguous, keep ADR-003 blocked and narrow the next experiment to that ambiguity.
 
 ## Redaction and distribution notes
 
@@ -137,8 +135,8 @@ The required three-change correlation and write completion are now demonstrated.
 
 ## Recommendation
 
-Use `PP_aps.sav` as the authoritative persistence source for the tested profile/build, combining `CustomActionMappings.NewBinding` and `CustomVehicle` overrides rather than reading `VehicleMappings` alone. Keep issue 05 blocked for general support until the remaining bounded edge/profile experiments succeed.
+Use `PP_aps.sav` as the authoritative persistence source for the tested single profile/build, combining `CustomActionMappings.NewBinding` and `CustomVehicle` overrides rather than reading `VehicleMappings` alone. Keep issue 05 blocked until the remaining bounded unbound/duplicate/restart experiments succeed.
 
 ## Independent reproduction
 
-On 2026-09-11, a second agent was limited to this document, ADR-003, and `tests/fixtures/bindings/` (no original saves). It independently recovered both door old/new pairs and the reverser before/after swap, reproduced the property-precedence conclusion for the tested profile/build, and reported the remaining edge/profile gates. It found no hard-coded semantic-to-key default or privacy leak after review findings were addressed. This verifies that the sanitized evidence is interpretable; it does not replace the outstanding manual edge/profile experiments.
+On 2026-09-11, a second agent was limited to this document, ADR-003, and `tests/fixtures/bindings/` (no original saves). It independently recovered both door old/new pairs and the reverser before/after swap, reproduced the property-precedence conclusion for the tested profile/build, and reported the remaining gates. It found no hard-coded semantic-to-key default or privacy leak after review findings were addressed. This verifies that the sanitized evidence is interpretable; it does not replace the outstanding manual edge experiments.

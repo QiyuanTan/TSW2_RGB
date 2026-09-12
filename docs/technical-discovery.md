@@ -11,7 +11,7 @@ Research must record environment (Windows build, TSW2 build/store, keyboard mode
 1. Identify the TSW2 process and candidate user configuration locations using read-only observation.
 2. Save a sanitized default binding fixture.
 3. Rebind `DoorLeft`, `DoorRight`, and one reverser action in-game; diff before/after data.
-4. Determine active profile selection, action identifiers, primary/secondary bindings, unbound representation, duplicate keys, locale/layout behavior, format, and atomic-write behavior.
+4. For the MVP's single-profile/US-layout envelope, determine deterministic profile resolution, action identifiers, the single UI binding representation, unbound representation, duplicate keys, format, and atomic-write behavior. Tolerate multiple serialized chords without claiming secondary-binding UI semantics; multi-profile selection and non-US layout translation are out of scope.
 5. Prove a reliable change signal or specify debounced polling.
 6. Produce `docs/research/bindings.md`, sanitized fixtures, and ADR-003.
 

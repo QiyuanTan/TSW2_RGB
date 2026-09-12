@@ -11,7 +11,7 @@ These JSON files are sanitized, manually checked transcriptions of read-only loc
 
 All captures came from the same Windows `zh-CN` environment and an installed TSW2 executable dated 2022-07-01. The source save class reported UE4 4.26 and `/Script/TS2Prototype.PlayerProfile`. Personal path segments, profile identity, progress, account/store identifiers, timestamps, and unrelated bindings were excluded.
 
-The first two captures have identical records for the required actions and establish the before state. `observed-custom.json` records the correlated after state. Remaining secondary/unbound/duplicate/profile/layout fixtures are deliberately not fabricated; follow the bounded experiment in `docs/research/bindings.md` to supplement them.
+The first two captures have identical records for the required actions and establish the before state. `observed-custom.json` records the correlated after state. Remaining unbound, duplicate, and restart fixtures are deliberately not fabricated; follow the bounded experiment in `docs/research/bindings.md` to supplement them. Secondary-binding UI behavior, multi-profile selection, and non-US layouts are outside the MVP support envelope.
 
 Fixture invariants:
 

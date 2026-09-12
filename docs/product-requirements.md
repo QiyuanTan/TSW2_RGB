@@ -46,6 +46,8 @@ Input observation can create short optimistic feedback, but it must expire and m
 ## Product constraints
 
 - Windows-first and TSW2-specific for MVP.
+- MVP supports one explicitly resolved TSW2 player profile and a US-layout physical keyboard; multi-profile selection and non-US layout display/translation are out of scope.
+- MVP does not require a secondary-binding UI workflow. Readers remain tolerant of multiple serialized chords if a build contains them.
 - No hard-coded physical key for a semantic action in core or profile code.
 - State readers, binding reader, rules, and RGB transport remain independently replaceable.
 - Polling/rendering must not inject keyboard input or modify game files.
