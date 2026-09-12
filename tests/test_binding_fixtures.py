@@ -33,6 +33,26 @@ class BindingResearchFixtureTests(unittest.TestCase):
                 {"raw_identifier", "direction", "semantic_action"},
             )
 
+    def test_controlled_fixture_explains_all_three_swaps(self):
+        custom = self.load("observed-custom.json")
+
+        self.assertIs(custom["authority_proven_for_tested_profile"], True)
+        action_changes = {
+            entry["identifier"]: (entry["old"]["key_name"], entry["new"]["key_name"])
+            for entry in custom["custom_action_mappings"]
+        }
+        self.assertEqual(action_changes["KeyboardToggleDoorsLeft"], ("Y", "U"))
+        self.assertEqual(action_changes["KeyboardToggleDoorsRight"], ("U", "Y"))
+
+        reverser = custom["custom_vehicle"][0]
+        self.assertEqual(reverser["identifier"], "Reverser")
+        self.assertEqual(reverser["increase"][0]["key_name"], "S")
+        self.assertEqual(reverser["decrease"][0]["key_name"], "W")
+        self.assertIs(
+            custom["retained_vehicle_mapping_observation"][0]["authoritative"],
+            False,
+        )
+
     def test_every_observed_required_direction_is_catalogued(self):
         current = self.load("observed-current.json")
         catalog = self.load("action-catalog.json")["actions"]

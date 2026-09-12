@@ -1,6 +1,6 @@
 {
   "catalog_schema": 1,
-  "status": "candidate-pending-controlled-rebind",
+  "status": "candidate-pending-edge-and-profile-validation",
   "actions": [
     {"raw_identifier": "Reverser", "direction": "increase", "semantic_action": "reverser.increase"},
     {"raw_identifier": "Reverser", "direction": "decrease", "semantic_action": "reverser.decrease"},

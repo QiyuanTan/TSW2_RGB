@@ -1,12 +1,12 @@
 # TSW2 binding-source discovery
 
-Status: **blocked pending the controlled in-game rebind experiment described below**. This document records verified observations, not a completed authority decision.
+Status: **partially validated, still blocked on the remaining edge/profile experiments below**. This document records verified observations, not a completed authority decision.
 
 ## Scope and evidence boundary
 
-The issue requires proof that a source is authoritative by changing `KeyboardToggleDoorsLeft`, `KeyboardToggleDoorsRight`, and one reverser binding in TSW2 and correlating the writes. The available installation could be inspected read-only, but this execution environment could not operate the native game UI. Two existing profile files were compared; their three required records are byte-for-byte equivalent, so they are not a substitute for the required experiment.
+The issue requires proof that a source is authoritative by changing `KeyboardToggleDoorsLeft`, `KeyboardToggleDoorsRight`, and one reverser binding in TSW2 and correlating the writes. The initial two profile files had equivalent required records. On 2026-09-11 a person operating the native game UI swapped left/right doors and reverser increase/decrease while a read-only watcher observed the save directory. The resulting `PP_aps.sav` changes encode all three UI changes exactly, proving that file is an authoritative persistence source for this tested profile/build.
 
-No production parser should be implemented from this report yet. Issue 05 remains gated.
+The experiment also proved that a reader cannot use `VehicleMappings` alone: TSW2 stores action overrides and vehicle-control overrides in different properties, and retains a materialized/base mapping array. Secondary/unbound semantics, active-profile selection, and locale behavior remain gated, so issue 05 must not claim general support yet.
 
 ## Environment
 
@@ -15,7 +15,7 @@ Observation date: 2026-09-11 (America/Los_Angeles).
 - OS: Windows 11 Home Insider Preview, build 28120, UI/input culture `zh-CN`.
 - Game: installed TSW2 Windows build with an executable timestamp of 2022-07-01; the executable exposes no file/product version. Its SHA-256 was recorded locally for reproducibility but is omitted because the installed package provenance is not independently established.
 - Store-shaped user directory: `TrainSimWorld2EGS`.
-- Game/keyboard UI validation: not performed.
+- Game UI validation: performed manually for the three required swaps; exact UI screenshots were not captured.
 - Keyboard model, firmware, Armoury Crate/Aura versions: not relevant to this binding-only observation and not collected.
 
 ## Candidate locations and observations
@@ -24,11 +24,11 @@ Paths below deliberately use environment variables and contain no username or ac
 
 | Candidate | Observation | Confidence |
 |---|---|---|
-| `%USERPROFILE%\Documents\My Games\TrainSimWorld2EGS\Saved\SaveGames\PP_aps.sav` | Standard-looking unencrypted GVAS; save class `/Script/TS2Prototype.PlayerProfile`; contains action/chord records. | Strong candidate, authority unproven |
+| `%USERPROFILE%\Documents\My Games\TrainSimWorld2EGS\Saved\SaveGames\PP_aps.sav` | Standard-looking unencrypted GVAS; save class `/Script/TS2Prototype.PlayerProfile`; the three controlled UI swaps were persisted here. | Authoritative for tested profile/build |
 | `%USERPROFILE%\Documents\My Games\TrainSimWorld2EGS\Saved\SaveGames\BAK_aps.sav` | Older backup with the same required binding records. | Backup candidate only |
 | `%USERPROFILE%\Documents\My Games\TrainSimWorld2EGS\Saved\Config\WindowsNoEditor\Input.ini` | Two-byte empty file (CRLF) at observation time. | Rejected for this capture |
 
-The current profile file contains the slot strings `PP_aps` and a profile name. Profile names are personal data and are not retained in fixtures. The existence of `PP_aps.sav` does **not** prove how TSW2 chooses the active profile, whether the slot name is stable, or whether another store/build uses the same filename.
+The current profile file contains a `SlotName` equal to its filename stem and a `PlayerProfileName`; the latter is personal data and is not retained in fixtures. This establishes the current file's self-identification but does **not** prove how TSW2 chooses among multiple profiles, whether the naming convention is stable, or whether another store/build uses it.
 
 ## Observed binary shape
 
@@ -47,7 +47,13 @@ The candidate begins with GVAS metadata identifying Unreal Engine `++UE4+Release
     VirtualHIDInputChord ...
 ```
 
-Observed mapping arrays include `CustomVehicle` and `VehicleMappings`. Their precedence and active-profile semantics are unproven. A parser must preserve array order and all unknown properties, but must not infer that the first array or first chord is active until the controlled experiment proves it.
+Observed mapping properties are:
+
+- `CustomActionMappings: Array<CustomKeyboardActionBinding>`. Each entry has `KeyType`, `OldBinding`, and `NewBinding`; each binding is an `InputActionKeyMapping` containing `ActionName`, a key, and modifiers.
+- `CustomVehicle: Array<VirtualHIDInputConfig>`. Controlled vehicle-input changes appear here as full directional overrides.
+- `VehicleMappings: Array<VirtualHIDInputConfig>`. This retains/materializes base/effective-looking vehicle data, but the controlled experiment produced a contradictory duplicate reverser value here; it is not independently authoritative.
+
+Apply `CustomActionMappings.NewBinding` for action identifiers and `CustomVehicle` for vehicle controls. Do not read `VehicleMappings` as the sole source. Active-profile selection remains unproven.
 
 The sanitized transcriptions in `tests/fixtures/bindings/` contain only the three required action records. In both captures:
 
@@ -56,6 +62,13 @@ The sanitized transcriptions in `tests/fixtures/bindings/` contain only the thre
 - `KeyboardToggleDoorsRight`: one increase chord (`U`) and an empty decrease array.
 - All modifiers on populated chords are false.
 
+After the controlled swaps, `observed-custom.json` records:
+
+- Door right: `OldBinding` `U`, `NewBinding` `Y`.
+- Door left: `OldBinding` `Y`, `NewBinding` `U`.
+- Reverser custom vehicle override: increase `S`, decrease `W`.
+- The retained `VehicleMappings` reverser record became increase `S`, decrease `S`; this contradicts the UI swap and proves it cannot be treated as the only authoritative property.
+
 These values are evidence, not application defaults.
 
 ## Normalization contract candidate
@@ -63,7 +76,7 @@ These values are evidence, not application defaults.
 This contract is sufficient to describe the next experiment, but remains provisional until that experiment succeeds.
 
 1. Treat `Identifier` plus direction (`increase` or `decrease`) as the raw action identity. Map only catalogued pairs to stable semantic actions. Retain unknown identifiers as diagnostics and ignore them for lighting.
-2. Treat every array element as a binding candidate. Do not label array positions “primary” or “secondary” until the UI-to-array ordering is observed. Preserve multiple chords and duplicates.
+2. For `CustomActionMappings`, replace the matching old action chord with `NewBinding`; retain ordering. For `CustomVehicle`, the matching identifier's directional arrays override the corresponding vehicle mapping. Treat every chord array element as a binding candidate. Do not label array positions “primary” or “secondary” until the UI-to-array ordering is observed.
 3. Represent a chord as `{ key_name, modifiers }`. `key_name` is the serialized Unreal `FKey` name, not a localized label or display character.
 4. Normalize supported keyboard keys at the adapter boundary to USB HID usage identifiers plus modifiers. For example, serialized letter names describe physical key identities; layout-specific characters must come from the OS layout only for display. Core semantic mappings never contain a physical default.
 5. An empty chord array is the observed candidate representation for “no binding in that direction”; a UI unbind must still prove this. A serialized `KeyName=None` must be treated as unsupported/unbound, not as a key.
@@ -84,7 +97,9 @@ These are safety requirements, not claims about unobserved TSW2 writes.
 
 ## Reload and write behavior
 
-Actual TSW2 write/rename behavior is **not yet observed**. Until measured, use debounced polling as the proposed cross-build fallback rather than relying solely on `FileSystemWatcher`:
+For the controlled run, Windows `FileSystemWatcher` reported paired `Changed` notifications for `PP_aps.sav` at relative times T+0 s, T+3 s, and T+11 s, correlating with the three UI edits, plus another pair at T+108 s. It reported no create, delete, or rename. File length changed from 253,750 to 256,762 bytes and SHA-256 changed. Alt+F4 shutdown produced no additional save event. An earlier launch/exit updated the timestamp while preserving length and content hash, proving metadata-only false positives occur.
+
+This is evidence of in-place writes for the tested build, but filesystem events may be coalesced or missed. Use debounced polling as the cross-build fallback rather than relying solely on `FileSystemWatcher`:
 
 1. Poll the resolved candidate identity `(last-write time, length)` every 500 ms.
 2. On a change, debounce for 250 ms.
@@ -93,7 +108,7 @@ Actual TSW2 write/rename behavior is **not yet observed**. Until measured, use d
 5. Publish only a completely parsed snapshot with a content-derived revision; coalesce identical content.
 6. Watch the parent directory as an optimization so replace-by-rename is noticed, but keep polling as recovery for missed/coalesced events.
 
-The timing values are starting parameters for the bounded experiment, not measured facts. The experiment must record whether TSW2 writes in place, truncates then writes, or replaces atomically, and whether changes occur on key assignment, menu apply/back, profile switch, or shutdown.
+The timing values remain conservative starting parameters rather than performance-tuned guarantees. Content-derived revisions are mandatory because timestamp-only writes were observed.
 
 ## Bounded experiment required to unblock ADR-003
 
@@ -101,15 +116,15 @@ Use a supported, legitimately installed TSW2 build whose exact game version/stor
 
 1. Close TSW2. Inventory candidate files with relative path, size, SHA-256, and nanosecond-capable timestamp. Copy candidates to an external scratch directory; never commit whole saves.
 2. Start a filesystem trace on the `Saved` directory that records create/write/rename/delete events and periodically records candidate metadata.
-3. Launch TSW2, select a named test profile, and record which file changes. Capture `default-before`.
-4. In the keyboard settings UI, bind left doors to a previously unused key, add a secondary binding if the UI supports it, then apply/back. Capture the UI and changed files.
-5. Repeat for right doors and reverser increase. Then unbind one secondary, deliberately duplicate one key on two actions if allowed, and capture after each apply.
+3. Launch TSW2, create/select a second named test profile, and record which file changes. The single-profile case and three required swaps are already captured.
+4. In the keyboard settings UI, add a secondary binding if the UI supports it, then apply/back. Capture the UI and changed files.
+5. Unbind one binding, deliberately duplicate one key on two actions if allowed, and capture after each apply.
 6. Switch profiles and repeat one change to establish active-profile selection.
 7. With a non-US layout active, bind the physical key whose legend/produced character differs and compare serialized `KeyName` with the UI label.
 8. Diff parsed property trees and raw byte ranges. Confirm unrelated profile data is excluded from fixtures. Repeat once after game restart to prove persistence and selection.
 9. Record event timing and test the proposed debounce algorithm against every write trace.
 
-Success requires a one-to-one correlation between each UI operation and the selected source/schema, including primary/secondary ordering, unbound form, duplicates, layout behavior, profile selection, and write completion. If any point is ambiguous, keep ADR-003 blocked and narrow the next experiment to that ambiguity.
+The required three-change correlation and write completion are now demonstrated. Success still requires primary/secondary ordering, unbound form, duplicates, layout behavior, and multi-profile selection. If any point is ambiguous, keep ADR-003 blocked and narrow the next experiment to that ambiguity.
 
 ## Redaction and distribution notes
 
@@ -120,8 +135,8 @@ Success requires a one-to-one correlation between each UI operation and the sele
 
 ## Recommendation
 
-Keep `PP_aps.sav` as the leading candidate and keep issue 05 blocked. Do not approve ADR-003 or claim hot reload support until the bounded in-game experiment succeeds. The empty `Input.ini` and matching records in `PP_aps.sav`/`BAK_aps.sav` are useful discovery evidence but do not establish authority.
+Use `PP_aps.sav` as the authoritative persistence source for the tested profile/build, combining `CustomActionMappings.NewBinding` and `CustomVehicle` overrides rather than reading `VehicleMappings` alone. Keep issue 05 blocked for general support until the remaining bounded edge/profile experiments succeed.
 
 ## Independent reproduction
 
-On 2026-09-11, a second agent was limited to this document and `tests/fixtures/bindings/` (no original saves). It independently recovered the three chord interpretations listed above, identified `PP_aps.sav` only as a leading candidate, and reported every unproven behavior called out in this document. It found no contradiction, hard-coded semantic-to-key default, or privacy leak. This verifies that the sanitized evidence is interpretable; it does not satisfy the missing in-game authority experiment.
+On 2026-09-11, a second agent was limited to this document, ADR-003, and `tests/fixtures/bindings/` (no original saves). It independently recovered both door old/new pairs and the reverser before/after swap, reproduced the property-precedence conclusion for the tested profile/build, and reported the remaining edge/profile gates. It found no hard-coded semantic-to-key default or privacy leak after review findings were addressed. This verifies that the sanitized evidence is interpretable; it does not replace the outstanding manual edge/profile experiments.

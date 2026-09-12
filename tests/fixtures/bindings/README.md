@@ -6,11 +6,12 @@ These JSON files are sanitized, manually checked transcriptions of read-only loc
 
 - `observed-backup.json`: required-action subset from `BAK_aps.sav`.
 - `observed-current.json`: required-action subset from `PP_aps.sav`.
+- `observed-custom.json`: sanitized section-aware transcription after the controlled three swaps.
 - `action-catalog.json`: candidate raw action/direction to semantic-action mapping; intentionally contains no keys.
 
-Both captures came from the same Windows `zh-CN` environment and an installed TSW2 executable dated 2022-07-01. The source save class reported UE4 4.26 and `/Script/TS2Prototype.PlayerProfile`. Personal path segments, profile identity, progress, account/store identifiers, timestamps, and unrelated bindings were excluded.
+All captures came from the same Windows `zh-CN` environment and an installed TSW2 executable dated 2022-07-01. The source save class reported UE4 4.26 and `/Script/TS2Prototype.PlayerProfile`. Personal path segments, profile identity, progress, account/store identifiers, timestamps, and unrelated bindings were excluded.
 
-The two captures have identical records for the required actions. They therefore do not prove a UI rebind or authority. Do not rename them to “default” or “custom”. The missing controlled fixtures are deliberately not fabricated; follow the bounded experiment in `docs/research/bindings.md` to replace/supplement them.
+The first two captures have identical records for the required actions and establish the before state. `observed-custom.json` records the correlated after state. Remaining secondary/unbound/duplicate/profile/layout fixtures are deliberately not fabricated; follow the bounded experiment in `docs/research/bindings.md` to supplement them.
 
 Fixture invariants:
 
