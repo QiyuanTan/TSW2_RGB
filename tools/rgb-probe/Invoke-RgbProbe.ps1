@@ -166,6 +166,8 @@ if ($Mode -in @('Smoke', 'Soak') -and -not $AcceptLightingControl) {
 }
 
 $lampArray = $null
+$probeExitCode = 0
+$cleanupFailed = $false
 try {
     Initialize-LampArrayTypes
     $devices = @(Get-LampArrayDevices)
@@ -260,7 +262,7 @@ catch {
         'probe_failed'
     }
     Write-Diagnostic $diagnosticCode $_.Exception.Message 'error'
-    exit 10
+    $probeExitCode = 10
 }
 finally {
     if ($null -ne $lampArray) {
@@ -272,6 +274,7 @@ finally {
         }
         catch {
             Write-Diagnostic 'clear_failed' $_.Exception.Message 'error'
+            $cleanupFailed = $true
         }
         finally {
             $lampArray = $null
@@ -280,4 +283,12 @@ finally {
             Write-Diagnostic 'released' 'The LampArray reference was released; Windows may restore the next eligible lighting controller.'
         }
     }
+}
+
+if ($cleanupFailed -and $probeExitCode -eq 0) {
+    $probeExitCode = 11
+}
+
+if ($probeExitCode -ne 0) {
+    exit $probeExitCode
 }
