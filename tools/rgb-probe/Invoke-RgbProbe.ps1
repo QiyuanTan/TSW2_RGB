@@ -240,7 +240,10 @@ try {
 
     $process.Refresh()
     $sorted = @($latencies | Sort-Object)
-    $p95 = if ($sorted.Count -eq 0) { 0 } else { $sorted[[math]::Min($sorted.Count - 1, [math]::Floor($sorted.Count * 0.95))] }
+    $p95 = if ($sorted.Count -eq 0) { 0 } else {
+        $p95Index = [int]([math]::Max(0, [math]::Ceiling($sorted.Count * 0.95) - 1))
+        $sorted[$p95Index]
+    }
     Write-Diagnostic 'run_complete' ("mode={0}; seconds={1:N2}; frames={2}; errors={3}; p95_ms={4:N3}; private_bytes_delta={5}" -f $Mode, $started.Elapsed.TotalSeconds, $latencies.Count, $errors, $p95, ($process.PrivateMemorySize64 - $initialPrivateBytes))
     if ($errors -ne 0) {
         throw "The animation completed with $errors failed frame(s)."
