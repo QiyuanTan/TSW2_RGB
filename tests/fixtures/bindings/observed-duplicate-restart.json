@@ -1,0 +1,17 @@
+{
+  "fixture_schema": 1,
+  "capture": "observed-duplicate-confirmed-after-restart",
+  "source_path": "%USERPROFILE%/Documents/My Games/TrainSimWorld2EGS/Saved/SaveGames/PP_aps.sav",
+  "authority_proven_for_tested_profile": true,
+  "custom_action_mappings_in_serialized_order": [
+    {"identifier": "KeyboardToggleDoorsRight", "old_key_name": "U", "new_key_name": "Y"},
+    {"identifier": "KeyboardToggleDoorsLeft", "old_key_name": "Y", "new_key_name": "Y"},
+    {"identifier": "KeyboardToggleDoorsLeft", "old_key_name": "None", "new_key_name": "Y"}
+  ],
+  "effective_confirmed_in_ui_after_restart": {
+    "KeyboardToggleDoorsRight": ["Y"],
+    "KeyboardToggleDoorsLeft": ["Y"],
+    "Reverser.increase": ["S"],
+    "Reverser.decrease": ["W"]
+  }
+}

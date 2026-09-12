@@ -1,0 +1,18 @@
+{
+  "fixture_schema": 1,
+  "capture": "observed-custom-after-three-swaps",
+  "source_path": "%USERPROFILE%/Documents/My Games/TrainSimWorld2EGS/Saved/SaveGames/PP_aps.sav",
+  "save_class": "/Script/TS2Prototype.PlayerProfile",
+  "engine": "++UE4+Release-4.26",
+  "authority_proven_for_tested_profile": true,
+  "custom_action_mappings": [
+    {"identifier": "KeyboardToggleDoorsRight", "old": {"key_name": "U", "shift": false, "ctrl": false, "alt": false, "cmd": false}, "new": {"key_name": "Y", "shift": false, "ctrl": false, "alt": false, "cmd": false}},
+    {"identifier": "KeyboardToggleDoorsLeft", "old": {"key_name": "Y", "shift": false, "ctrl": false, "alt": false, "cmd": false}, "new": {"key_name": "U", "shift": false, "ctrl": false, "alt": false, "cmd": false}}
+  ],
+  "custom_vehicle": [
+    {"identifier": "Reverser", "increase": [{"key_name": "S", "shift": false, "ctrl": false, "alt": false, "cmd": false}], "decrease": [{"key_name": "W", "shift": false, "ctrl": false, "alt": false, "cmd": false}]}
+  ],
+  "retained_vehicle_mapping_observation": [
+    {"identifier": "Reverser", "increase": [{"key_name": "S", "shift": false, "ctrl": false, "alt": false, "cmd": false}], "decrease": [{"key_name": "S", "shift": false, "ctrl": false, "alt": false, "cmd": false}], "authoritative": false}
+  ]
+}
