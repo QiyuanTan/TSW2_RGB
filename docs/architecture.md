@@ -66,6 +66,8 @@ RgbBackend.discover(); open(device); submit(KeyFrame); clear(); close()
 Clock.now(); Scheduler.start(); stop()
 ```
 
+`StateReader` is a reserved boundary, not evidence that a usable source exists. ADR-004 currently selects no implementation. A future adapter must additionally expose a stable source identifier and health, support cancellation and idempotent cleanup, declare capabilities per game/locomotive context, and translate source loss or unsupported contexts to unavailable observations without retaining guessed values.
+
 ## Invariants
 
 - Missing/unbound/unsupported controls emit diagnostics and no device command.

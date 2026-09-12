@@ -1,0 +1,1 @@
+{"schema_version":1,"sequence":1,"observed_at_utc":"2026-09-11T20:09:02.9947155Z","source_id":"windows-process-probe","event":"source_unavailable","field":"session","value":"unavailable","quality":"unavailable","context":{"reason":"process_absent","process_name":"TS2Prototype-Win64-Shipping","game_build":"unknown","locomotive_id":"unknown"}}
