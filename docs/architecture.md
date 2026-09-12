@@ -103,3 +103,7 @@ docs/research/       reproducible discovery evidence
 - ADR-005 update loop and threading model.
 
 Any issue that changes a boundary above updates this document and adds or amends an ADR.
+
+## RGB transport status
+
+ADR-002 proposes Windows HID LampArray as the ASUS transport boundary. The decision is conditional on the outstanding hardware proof recorded in `docs/research/rgb-backend.md`; no production backend or device support claim is authorized yet. Normalized physical keys are translated to Windows virtual keys and resolved to lamp indices only inside the future adapter. Core, profile, and rule code must never store LampArray indices.

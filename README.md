@@ -8,6 +8,15 @@ Planning package for a Windows application that maps Train Sim World 2 (TSW2) se
 - [System architecture and contracts](docs/architecture.md)
 - [Technical discovery plan](docs/technical-discovery.md)
 - [Quality and test strategy](docs/test-strategy.md)
+- [ASUS RGB transport research](docs/research/rgb-backend.md)
 - [Issue backlog and dependency graph](issues/README.md)
+
+## Manual RGB diagnostic probe
+
+The opt-in Windows LampArray probe is isolated from normal startup and automated tests. See the research record before using it. A pure, hardware-free check is available with:
+
+```powershell
+powershell.exe -NoProfile -File .\tests\rgb-probe\Run-Tests.ps1
+```
 
 The backlog is deliberately split into agent-sized issues. Do not begin runtime-state feature work until the acquisition feasibility gate in issue 02 is resolved.
