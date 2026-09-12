@@ -1,18 +1,18 @@
 # ADR-004: Runtime state acquisition remains unselected
 
-- Status: Rejected / `NO-GO`
-- Date: 2026-09-11
+- Status: Provisional `NO-GO` for downstream implementation; research incomplete
+- Date: 2026-09-12
 - Issue: #3
 
 ## Context
 
 The product requires confirmed reverser, left-door, right-door, and headlight or wiper state. The acquisition source must be read-only, recover from lifecycle changes, declare supported fields, and represent unsupported data as unknown or unavailable.
 
-No live TSW2 session, tested locomotive, authoritative interface, or visible-state-correlated trace was available during this decision. Generic engine documentation and input events cannot establish a TSW2 runtime contract.
+The live BR442 session recorded distinct reverser HUD indications, side-specific door indications, and localized wiper tooltips for Off and settings 1–3. Pause/resume, restart, a change to 1972 Stock, and exit were also observed. See [the dated ledger](../research/br442-live-session.md). These are manual observations, not a validated automated reader: door release versus physical opening is unresolved, the wiper tooltip disappears during normal driving, and latency/reliability have not been measured. This supersedes the initial absence-based rationale.
 
 ## Decision
 
-Select no runtime state source. The gate is `NO-GO`.
+Select no production runtime state source. The gate remains provisionally `NO-GO` for downstream implementation because required evidence is incomplete. This is not a finding that acquisition is impossible, nor completion of all issue #3 acceptance criteria.
 
 Do not implement a production reader, offsets, selectors, OCR rules, or input-derived confirmed state from this ADR. Issues depending on acquisition feasibility remain blocked. The bounded validation experiment in `docs/research/state-acquisition.md` must be completed before this ADR can be superseded.
 

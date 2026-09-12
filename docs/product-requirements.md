@@ -56,7 +56,7 @@ Input observation can create short optimistic feedback, but it must expire and m
 
 ## MVP release gates
 
-Issue 02 concluded `NO-GO` because no runtime source could be validated in the available environment. Accordingly, the current demonstrable milestone is limited to binding-driven/static lighting and explicitly labeled optimistic feedback. A future runtime-synchronized MVP must satisfy all gates below; the acquisition-related gates are not waived or silently relaxed.
+Issue 02 remains provisionally `NO-GO` for downstream implementation: live BR442 observations exist, but no source has demonstrated the required semantic coverage, reliability, and latency. Accordingly, the current demonstrable milestone is limited to binding-driven/static lighting and explicitly labeled optimistic feedback. A future runtime-synchronized MVP must satisfy all gates below; the acquisition-related gates are not waived or silently relaxed.
 
 1. A captured custom binding fixture resolves correctly and a changed binding moves the LED after reload.
 2. A hardware smoke test sets and clears at least ten distinct keys without visible stutter.

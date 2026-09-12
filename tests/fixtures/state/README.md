@@ -7,8 +7,11 @@ These fixtures are sanitized JSON Lines (`.jsonl`). They contain observations ac
 | File | Date | Environment | Purpose |
 |---|---|---|---|
 | `process-absent.jsonl` | 2026-09-11 | Windows host; no running TSW2 process | Records genuine source-unavailable behavior only |
+| `game-exited.jsonl` | 2026-09-12 | Windows host; user exited the observed TSW2 session | Records a point-in-time absence check after exit, not exit latency or production reader behavior |
 
 This evidence does not validate any train-state field or locomotive.
+
+Live BR442 observations are documented in [the session ledger](../../../docs/research/br442-live-session.md). They are manual screenshot interpretations, not replayable state-reader captures. No synthetic train state is promoted to authoritative or validated-derived quality.
 
 ## Schema
 
