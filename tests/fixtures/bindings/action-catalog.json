@@ -1,6 +1,6 @@
 {
   "catalog_schema": 1,
-  "status": "candidate-pending-unbound-duplicate-restart-validation",
+  "status": "validated-for-mvp-envelope",
   "actions": [
     {"raw_identifier": "Reverser", "direction": "increase", "semantic_action": "reverser.increase"},
     {"raw_identifier": "Reverser", "direction": "decrease", "semantic_action": "reverser.decrease"},

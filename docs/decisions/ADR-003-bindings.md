@@ -1,18 +1,18 @@
 # ADR-003: TSW2 binding source and key normalization
 
-- Status: blocked
+- Status: accepted
 - Date: 2026-09-11
 - Decision owners: binding discovery / issue #2
 
 ## Context
 
-TSW2 lighting must follow the in-game keyboard bindings for the supported configuration. A controlled manual UI run proved that three required swaps persist to a UE4 GVAS player-profile save while `Input.ini` remains empty. Door action overrides appear as old/new pairs in `CustomActionMappings`; the reverser vehicle-control override appears in `CustomVehicle`. `VehicleMappings` alone is contradictory and insufficient. The MVP support envelope is one resolved player profile, one UI binding per action/direction, and US-layout keyboards. Unbound, duplicate, and restart experiments remain outstanding.
+TSW2 lighting must follow the in-game keyboard bindings for the supported configuration. Controlled manual UI runs proved three required swaps, unbinding, duplicate keys, and restart persistence in a UE4 GVAS player-profile save while `Input.ini` remains empty. Door action overrides are ordered old/new deltas in `CustomActionMappings`; vehicle-control overrides appear in `CustomVehicle`. `VehicleMappings` alone is insufficient. The MVP support envelope is one resolved player profile, one UI binding per action/direction, and US-layout keyboards.
 
-See `docs/research/bindings.md` and its sanitized fixtures for the evidence and exact remaining experiment.
+See `docs/research/bindings.md` and its sanitized fixtures for the evidence and reproduction procedure.
 
 ## Decision
 
-For the tested profile/build, `PP_aps.sav` is the authoritative persistence source. Resolve exactly one matching self-consistent `PP_*.sav`, or require an explicitly configured profile path; never guess among multiple profiles. Readers must apply `CustomActionMappings.NewBinding` action overrides and `CustomVehicle` vehicle-control overrides; they must not treat `VehicleMappings` alone as authoritative. Issue 05 remains blocked on the approval gate below.
+For the tested profile/build, `PP_aps.sav` is the authoritative persistence source. Resolve exactly one matching self-consistent `PP_*.sav`, or require an explicitly configured profile path; never guess among multiple profiles. Start with `VehicleMappings`, replay every `CustomActionMappings` entry in serialized order as remove-old/add-new (`None` means no chord), then apply matching `CustomVehicle` directional overrides. Issue 05 is unblocked within the defined MVP envelope.
 
 The following boundary decisions are safe regardless of the eventual source and are accepted:
 
@@ -26,9 +26,9 @@ The following boundary decisions are safe regardless of the eventual source and 
 
 ## Consequences
 
-- Binding parser and hot-reload implementation remain gated on unresolved unbound, duplicate, and restart behavior; restart validation includes confirming the documented reload strategy against any resulting write.
+- Binding parser and hot-reload implementation may proceed within the defined support envelope.
 - No hard-coded semantic-to-key defaults enter core/profile code.
-- A later accepted revision must finalize the unbound encoding, duplicate behavior, and restart persistence; restart validation includes the documented reload check.
+- Unbound action deltas use `NewBinding.Key.KeyName=None`; duplicate deltas are replayed in order and preserved; effective bindings persist across restart.
 - The proposed polling/debounce behavior in the research report is test input, not a measured guarantee.
 
 ## Alternatives considered
@@ -38,6 +38,6 @@ The following boundary decisions are safe regardless of the eventual source and 
 - Hard-code documented/default keys: rejected because it violates product requirements and would not follow user rebindings.
 - Ask users to maintain a second mapping: rejected as a product non-goal.
 
-## Approval gate
+## Validation
 
-Change status to Accepted only after the remaining bounded experiment in `docs/research/bindings.md` proves unbound form, duplicate behavior, and restart persistence. The three required binding changes, single-profile resolution policy, US-layout scope, and in-place write behavior are already captured.
+Accepted after the bounded experiment in `docs/research/bindings.md` proved all three required changes, unbound form, duplicate behavior, restart persistence, and in-place write behavior. The decision also adopts the single-profile resolution policy and US-layout support boundary.

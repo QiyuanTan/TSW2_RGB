@@ -1,12 +1,12 @@
 # TSW2 binding-source discovery
 
-Status: **partially validated, still blocked on the remaining edge experiments below**. This document records verified observations and the narrowed MVP support envelope.
+Status: **validated for the defined MVP support envelope**.
 
 ## Scope and evidence boundary
 
 The issue requires proof that a source is authoritative by changing `KeyboardToggleDoorsLeft`, `KeyboardToggleDoorsRight`, and one reverser binding in TSW2 and correlating the writes. The initial two profile files had equivalent required records. On 2026-09-11 a person operating the native game UI swapped left/right doors and reverser increase/decrease while a read-only watcher observed the save directory. The resulting `PP_aps.sav` changes encode all three UI changes exactly, proving that file is an authoritative persistence source for this tested profile/build.
 
-The experiment also proved that a reader cannot use `VehicleMappings` alone: TSW2 stores action overrides and vehicle-control overrides in different properties, and retains a materialized/base mapping array. The MVP is now explicitly limited to one configured/discovered profile, one UI binding per action/direction, and US-layout keyboards. Unbound and duplicate-key behavior plus restart persistence remain gated.
+The experiment also proved that a reader cannot use `VehicleMappings` alone: TSW2 stores action overrides and vehicle-control overrides in different properties, and retains a materialized/base mapping array. Follow-up experiments established unbound encoding, duplicate-key behavior, and restart persistence. The MVP is explicitly limited to one configured/discovered profile, one UI binding per action/direction, and US-layout keyboards.
 
 ## Environment
 
@@ -53,7 +53,7 @@ Observed mapping properties are:
 - `CustomVehicle: Array<VirtualHIDInputConfig>`. Controlled vehicle-input changes appear here as full directional overrides.
 - `VehicleMappings: Array<VirtualHIDInputConfig>`. This retains/materializes base/effective-looking vehicle data, but the controlled experiment produced a contradictory duplicate reverser value here; it is not independently authoritative.
 
-Apply `CustomActionMappings.NewBinding` for action identifiers and `CustomVehicle` for vehicle controls. Do not read `VehicleMappings` as the sole source. The single-profile resolution rule above deliberately avoids unproven active-profile inference.
+Use `VehicleMappings` as the base catalog of bindings, then replay every `CustomActionMappings` entry in serialized order: remove the exact `OldBinding` chord when it is not `None`, and add the exact `NewBinding` chord when it is not `None`. Apply matching `CustomVehicle` directional arrays as vehicle-control overrides. Do not read `VehicleMappings` as the sole effective source. The single-profile resolution rule above deliberately avoids unproven active-profile inference.
 
 The sanitized transcriptions in `tests/fixtures/bindings/` contain only the three required action records. In both captures:
 
@@ -71,15 +71,29 @@ After the controlled swaps, `observed-custom.json` records:
 
 These values are evidence, not application defaults.
 
+### Unbound and duplicate experiments
+
+After restart, the UI operator cleared Left Doors. `PP_aps.sav` emitted a paired `Changed` notification, grew by three bytes, and changed hash. The existing left-door delta remained, but its `NewBinding.Key.KeyName` became the Unreal name `None`. This proves UI unbound is represented by a retained delta whose new key is `None`; it is not an empty array for action mappings.
+
+The operator then assigned Left Doors the same `Y` key already used by Right Doors. TSW2 accepted the duplicate without a conflict prompt. The delta array became, in order:
+
+1. Right Doors `U` -> `Y`.
+2. Left Doors `Y` -> `Y`.
+3. Left Doors `None` -> `Y`.
+
+This proves `CustomActionMappings` must be replayed as ordered remove/add operations rather than collapsed to one last entry per action. Replaying over the base yields both door actions bound to `Y`. The file grew again and changed hash. `observed-unbound.json` and `observed-duplicate-restart.json` are sanitized transcriptions.
+
+After a normal exit and full relaunch, the operator confirmed in the UI that Left Doors=`Y`, Right Doors=`Y`, Reverser Increase=`S`, and Reverser Decrease=`W`. The duplicate and vehicle override therefore persist across restart.
+
 ## Normalization contract candidate
 
-This contract is sufficient to describe the next experiment, but remains provisional until that experiment succeeds.
+This contract is sufficient to implement issue 05 within the defined MVP envelope.
 
 1. Treat `Identifier` plus direction (`increase` or `decrease`) as the raw action identity. Map only catalogued pairs to stable semantic actions. Retain unknown identifiers as diagnostics and ignore them for lighting.
-2. For `CustomActionMappings`, replace the matching old action chord with `NewBinding`; retain ordering. For `CustomVehicle`, the matching identifier's directional arrays override the corresponding vehicle mapping. The supported UI contract is one binding per action/direction. If a file nevertheless contains multiple chords, preserve all supported entries in serialized order as forward-compatible input; no primary/secondary UI semantics are claimed.
+2. Start from `VehicleMappings`. Replay `CustomActionMappings` in serialized order, removing the exact old action chord unless its key is `None`, then adding the exact new chord unless its key is `None`. Do not collapse entries by action identifier. Apply `CustomVehicle` directional arrays as vehicle-control overrides. The supported UI contract is one binding per action/direction. If a directional array nevertheless contains multiple chords, preserve all supported entries in serialized order as forward-compatible input; no primary/secondary UI semantics are claimed.
 3. Represent a chord as `{ key_name, modifiers }`. `key_name` is the serialized Unreal `FKey` name, not a localized label or display character.
 4. Normalize supported keyboard keys at the adapter boundary to USB HID keyboard usages plus modifiers using the US physical layout. Serialized Unreal `FKey` names are identities, not localized characters. Non-US layout display/translation is out of MVP scope. Core semantic mappings never contain a physical default.
-5. An empty chord array is the observed candidate representation for “no binding in that direction”; a UI unbind must still prove this. A serialized `KeyName=None` must be treated as unsupported/unbound, not as a key.
+5. For action deltas, `NewBinding.Key.KeyName=None` means remove the old chord and add nothing. For `VirtualHIDInputConfig`, an empty directional chord array means no binding in that direction. `None` is never a physical key.
 
 `tests/fixtures/bindings/action-catalog.json` is the candidate MVP raw-to-semantic catalog. It intentionally contains no physical keys.
 
@@ -112,19 +126,19 @@ This is evidence of in-place writes for the tested build, but filesystem events 
 
 The timing values remain conservative starting parameters rather than performance-tuned guarantees. Content-derived revisions are mandatory because timestamp-only writes were observed.
 
-## Bounded experiment required to unblock ADR-003
+## Completed bounded experiment
 
-Use the same installed build, identified by its UE version header, executable timestamp, and locally retained executable hash; record the store-shaped user directory without claiming independently unavailable package provenance.
+The following experiment was completed on the same installed build, identified by its UE version header, executable timestamp, and locally retained executable hash. The store-shaped user directory was recorded without claiming independently unavailable package provenance.
 
 1. Close TSW2. Inventory candidate files with relative path, size, SHA-256, and nanosecond-capable timestamp. Copy candidates to an external scratch directory; never commit whole saves.
 2. Start a filesystem trace on the `Saved` directory that records create/write/rename/delete events and periodically records candidate metadata.
-3. Launch TSW2 with the same single test profile. The single-profile case and three required swaps are already captured.
-4. Unbind one binding through the UI and capture the changed file.
-5. Deliberately assign one key to two actions if the UI permits it; record whether TSW2 rejects, swaps, replaces, or persists the collision.
-6. Diff parsed property trees and raw byte ranges. Confirm unrelated profile data is excluded from fixtures. Restart the game and verify the selected bindings persist in both UI and source.
-7. Confirm after restart that the existing debounce/content-revision strategy detects any profile write without publishing a partial or identical snapshot.
+3. TSW2 was launched with the same single test profile.
+4. Left Doors was unbound through the UI and the changed file captured.
+5. Left Doors was assigned the same key as Right Doors; TSW2 accepted and persisted the collision.
+6. Parsed property trees and relevant byte ranges were compared and sanitized. The game was restarted and the effective bindings were confirmed in the UI.
+7. The watcher observed each content write; content-derived revisions correctly distinguish writes from metadata-only changes and repeated/coalesced events.
 
-The required three-change correlation and write completion are now demonstrated. Secondary-binding UI behavior, multi-profile selection, and non-US layouts are explicitly outside the supported MVP envelope. Success still requires unbound form, duplicate behavior, and restart persistence. If any point is ambiguous, keep ADR-003 blocked and narrow the next experiment to that ambiguity.
+The required three-change correlation, unbound form, duplicate behavior, restart persistence, and write completion are demonstrated. Secondary-binding UI behavior, multi-profile selection, and non-US layouts are explicitly outside the supported MVP envelope.
 
 ## Redaction and distribution notes
 
@@ -135,8 +149,8 @@ The required three-change correlation and write completion are now demonstrated.
 
 ## Recommendation
 
-Use `PP_aps.sav` as the authoritative persistence source for the tested single profile/build, combining `CustomActionMappings.NewBinding` and `CustomVehicle` overrides rather than reading `VehicleMappings` alone. Keep issue 05 blocked until the remaining bounded unbound/duplicate/restart experiments succeed.
+Use `PP_aps.sav` as the authoritative persistence source for the tested single profile/build. Resolve the effective bindings by replaying ordered `CustomActionMappings` deltas over `VehicleMappings`, then applying `CustomVehicle` overrides. Issue 05 is unblocked within the single-profile, single-UI-binding, US-layout MVP envelope.
 
 ## Independent reproduction
 
-On 2026-09-11, a second agent was limited to this document, ADR-003, and `tests/fixtures/bindings/` (no original saves). It independently recovered both door old/new pairs and the reverser before/after swap, reproduced the property-precedence conclusion for the tested profile/build, and reported the remaining gates. It found no hard-coded semantic-to-key default or privacy leak after review findings were addressed. This verifies that the sanitized evidence is interpretable; it does not replace the outstanding manual edge experiments.
+On 2026-09-11, a second agent was limited to this document, ADR-003, and `tests/fixtures/bindings/` (no original saves). It independently recovered both door old/new pairs and the reverser before/after swap and reproduced the property-precedence conclusion for the tested profile/build. A final reproduction includes the unbound, ordered-duplicate, and restart fixtures. It found no hard-coded semantic-to-key default or privacy leak after review findings were addressed.

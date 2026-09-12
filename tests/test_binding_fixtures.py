@@ -26,7 +26,7 @@ class BindingResearchFixtureTests(unittest.TestCase):
         catalog = self.load("action-catalog.json")
 
         self.assertEqual(catalog["catalog_schema"], 1)
-        self.assertIn("pending", catalog["status"])
+        self.assertEqual(catalog["status"], "validated-for-mvp-envelope")
         for action in catalog["actions"]:
             self.assertEqual(
                 set(action),
@@ -67,6 +67,27 @@ class BindingResearchFixtureTests(unittest.TestCase):
             if record[direction]
         }
         self.assertTrue(observed <= catalogued)
+
+    def test_unbound_action_delta_removes_without_adding(self):
+        fixture = self.load("observed-unbound.json")
+        left = fixture["custom_action_mappings"][1]
+
+        self.assertEqual(left["identifier"], "KeyboardToggleDoorsLeft")
+        self.assertEqual(left["old_key_name"], "Y")
+        self.assertEqual(left["new_key_name"], "None")
+        self.assertEqual(fixture["effective"]["KeyboardToggleDoorsLeft"], [])
+
+    def test_ordered_deltas_allow_persistent_duplicate_keys(self):
+        fixture = self.load("observed-duplicate-restart.json")
+        mappings = fixture["custom_action_mappings_in_serialized_order"]
+
+        self.assertEqual(len(mappings), 3)
+        self.assertEqual(mappings[-1]["old_key_name"], "None")
+        effective = fixture["effective_confirmed_in_ui_after_restart"]
+        self.assertEqual(effective["KeyboardToggleDoorsLeft"], ["Y"])
+        self.assertEqual(effective["KeyboardToggleDoorsRight"], ["Y"])
+        self.assertEqual(effective["Reverser.increase"], ["S"])
+        self.assertEqual(effective["Reverser.decrease"], ["W"])
 
 
 if __name__ == "__main__":

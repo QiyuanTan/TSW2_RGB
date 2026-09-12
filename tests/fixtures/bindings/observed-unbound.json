@@ -1,0 +1,14 @@
+{
+  "fixture_schema": 1,
+  "capture": "observed-left-door-unbound",
+  "source_path": "%USERPROFILE%/Documents/My Games/TrainSimWorld2EGS/Saved/SaveGames/PP_aps.sav",
+  "authority_proven_for_tested_profile": true,
+  "custom_action_mappings": [
+    {"identifier": "KeyboardToggleDoorsRight", "old_key_name": "U", "new_key_name": "Y"},
+    {"identifier": "KeyboardToggleDoorsLeft", "old_key_name": "Y", "new_key_name": "None"}
+  ],
+  "effective": {
+    "KeyboardToggleDoorsRight": ["Y"],
+    "KeyboardToggleDoorsLeft": []
+  }
+}
