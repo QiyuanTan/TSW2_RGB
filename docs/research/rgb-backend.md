@@ -1,6 +1,6 @@
 # ASUS RGB transport research
 
-**Status:** LampArray selected; forced-exit and reconnect validation pending
+**Status:** LampArray selected; reconnect and version capture pending
 
 **Research dates:** 2026-09-11 through 2026-09-12
 
@@ -10,7 +10,7 @@
 
 Select Windows `Windows.Devices.Lights.LampArray` for the production ASUS transport. It is an OS API over the open HID Lighting and Illumination standard, exposes per-lamp positions and virtual-key lookup, and requires no redistributed ASUS SDK binary. Foreground and packaged ambient smoke tests now prove per-key control on the reference keyboard while TSW2 retains focus.
 
-The critical discovery is that WDL ownership transfer is asynchronous and unusually slow on the reference preview Windows build. The ambient probe initially observed `IsAvailable=false`, then acquired control after approximately 66 seconds when allowed to wait. Game-focused smoke and ten-minute soak tests passed. This selects the transport but does not finish issue #5: forced termination, receiver reconnect, and firmware/version capture remain manual gates. No unrun result is inferred from successful normal-exit evidence.
+The critical discovery is that WDL ownership transfer is asynchronous and unusually slow on the reference preview Windows build. The ambient probe initially observed `IsAvailable=false`, then acquired control after approximately 66 seconds when allowed to wait. Game-focused smoke, ten-minute soak, normal exit, and forced process termination tests passed. This selects the transport but does not finish issue #5: receiver reconnect and firmware/version capture remain manual gates. No unrun result is inferred from successful exit evidence.
 
 ## Reference environment
 
@@ -115,6 +115,8 @@ mode=soak; seconds=600.05; frames=10770; errors=0; p95_ms=0.078; private_bytes_d
 
 No visible stutter or other problem was observed. The approximately 7.88 MiB private-byte increase is bounded and is not an obvious leak signal for this diagnostic's repeated color allocations, but longer production soak testing remains part of the general release strategy. Normal completion emitted `cleared` and `released`, and the expected cleanup/restoration behavior was observed.
 
+The probe was then forcibly terminated during active animation, preventing its `finally` cleanup and explicit black frame from running. Windows/Armoury Crate successfully reclaimed lighting control without intervention. Recovery latency was not measured. This proves platform-level lease recovery for abrupt process death; the application must still implement graceful clear/release for predictable normal shutdown.
+
 ### ASUS Aura SDK 3.07.05
 
 1. Confirmed ASUS-signed `AuraSdk_x64.dll` and `AuraSdk_x86.dll` are installed under the ASUS product directory.
@@ -156,7 +158,7 @@ OpenRGB was inspected as the most credible compatible implementation. Its curren
 | Packaging/signing | Foreground probe is unpackaged; background control requires package identity/app extension and normal application-signing review | Vendor DLL is signed; redistribution rights remain unknown | No client SDK binary; service availability is an installer prerequisite | Shipping or deriving code requires GPL and driver/signing review |
 | Arbitration | Windows foreground/background priority | Exclusive `SwitchMode`/`ReleaseControl` | Explicit POST acquire and DELETE release | Likely conflicts with vendor software |
 | Cleanup/restore | Release reference; Windows selects next controller/autonomous mode | Explicit release, behavior unproven | Release passed; no device/frame was exposed | Device-specific and unproven |
-| Reference result | Foreground and game-focused ambient smoke/soak passed after delayed handoff; forced exit/reconnect pending | Hang/native crash; restoration unproven | Initialization passed; inventory failed with HTTP 500 in both ASUS lighting modes | Exact device support not found |
+| Reference result | Foreground and game-focused ambient smoke/soak passed after delayed handoff; normal and forced-exit restoration passed; reconnect pending | Hang/native crash; restoration unproven | Initialization passed; inventory failed with HTTP 500 in both ASUS lighting modes | Exact device support not found |
 | Decision | **Selected; final lifecycle checks pending** | Rejected | Rejected | Rejected |
 
 ## Supported-device matrix
@@ -165,7 +167,7 @@ This matrix records evidence, not marketing compatibility. A device is supported
 
 | Device | Connection | Provider/API evidence | Per-key proof | Cleanup/reconnect proof | Status |
 |---|---|---|---|---|---|
-| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | LampArray foreground and packaged ambient control passed after approximately 66-second handoffs; Aura REST inventory returned HTTP 500 | Foreground and game-focused ambient ten-key/600-second tests passed | Foreground and ambient normal cleanup/restoration passed; forced-exit and reconnect checks pending | **Transport selected; final lifecycle validation pending** |
+| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | LampArray foreground and packaged ambient control passed after approximately 66-second handoffs; Aura REST inventory returned HTTP 500 | Foreground and game-focused ambient ten-key/600-second tests passed | Foreground, ambient normal cleanup, and forced-exit restoration passed; reconnect check pending | **Transport selected; final lifecycle validation pending** |
 | Any other ASUS keyboard | Any | Not evaluated | Not run | Not run | **Unsupported / unknown** |
 
 Firmware is deliberately `unknown` until it is copied from Armoury Crate during the manual run. No compatibility should be inferred for USB or Bluetooth from the receiver observation.
@@ -214,7 +216,7 @@ All unchecked items block acceptance and ADR promotion:
 - [x] Run the ambient 600-second soak while TSW2 retains focus; record 10,770 frames, zero errors, 0.078 ms p95 submission latency, no visible stutter, and bounded memory growth.
 - [x] Confirm ambient `cleared` makes the test keys black before release.
 - [x] Confirm ambient normal exit returns control to the expected Windows/Armoury lighting.
-- [ ] Terminate the probe process during a run and record restoration behavior.
+- [x] Terminate the probe process during a run; confirm Windows/Armoury Crate reclaims lighting without probe cleanup (recovery latency not measured).
 - [ ] Disconnect and reconnect the keyboard/receiver, rerun `Discover`, and repeat a short smoke test.
 - [x] Confirm an unavailable provider returns the structured `provider_unavailable` diagnostic plus exit code 10 without changing lighting.
 
