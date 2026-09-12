@@ -1,6 +1,6 @@
 # ADR-002: RGB transport
 
-- Status: Accepted — LampArray selected; final lifecycle validation pending
+- Status: Accepted — LampArray selected; forced-exit and reconnect validation pending
 - Date: 2026-09-12
 - Decision owners: project maintainers
 
@@ -10,9 +10,9 @@ The MVP needs per-key RGB on a target ASUS ROG keyboard, safe ownership release,
 
 ## Decision
 
-Select Windows `Windows.Devices.Lights.LampArray` as the ASUS RGB transport. It is standards-based, requires no redistributed ASUS binary, exposes per-key virtual-key lookup, and has now passed foreground and game-focused ambient smoke tests on the reference device. Translate normalized keys through Windows `VirtualKey` and `GetIndicesForKey` only inside the adapter.
+Select Windows `Windows.Devices.Lights.LampArray` as the ASUS RGB transport. It is standards-based, requires no redistributed ASUS binary, exposes per-key virtual-key lookup, and has now passed foreground and game-focused ambient smoke and ten-minute soak tests on the reference device. Translate normalized keys through Windows `VirtualKey` and `GetIndicesForKey` only inside the adapter.
 
-Do not close issue #5 or claim completed Scope II 96 support until the remaining ambient ten-minute soak, visible restoration, forced-exit, and reconnect evidence is recorded. Production backend issue 09 remains gated on that completion.
+Do not close issue #5 or claim completed Scope II 96 support until the remaining forced-exit, reconnect, and firmware/version evidence is recorded. Production backend issue 09 remains gated on that completion.
 
 Foreground control is insufficient because TSW2 must retain focus. The packaged ambient controller initially appeared unavailable, but a longer observation proved that Windows transferred control after 65.643 seconds. Ten spatially distinct keys then displayed their expected colors while TSW2 retained focus, with zero submission errors. Delayed arbitration is therefore a required lifecycle state rather than an unsupported-provider result. The diagnostic probe waits a bounded interval; a production adapter must remain event-driven and recover when `IsAvailable` changes instead of failing startup after a short timeout.
 
