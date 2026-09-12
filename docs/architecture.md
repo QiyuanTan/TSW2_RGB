@@ -105,3 +105,7 @@ docs/research/       reproducible discovery evidence
 - ADR-005 update loop and threading model.
 
 Any issue that changes a boundary above updates this document and adds or amends an ADR.
+
+## RGB transport status
+
+ADR-002 selects Windows HID LampArray after foreground and packaged ambient per-key smoke and ten-minute soak tests passed on the reference keyboard. Background ownership transfers took approximately 66 seconds, so temporary `IsAvailable=false` is a non-fatal waiting state. Normal exit, forced-exit restoration, and disconnect/reconnect recovery passed. The backend must use `DeviceWatcher` and `AvailabilityChanged`, keep discovery and ownership asynchronous, resume rendering after acquisition or reconnection, and release on shutdown. Normalized physical keys are translated to Windows virtual keys and then lamp indices only inside the adapter; core, profile, and rule code never stores those representations. Issue 09 may implement the production adapter against this accepted decision and the exact supported-device constraints in the research record.

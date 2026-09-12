@@ -1,3 +1,7 @@
+# rgb probe stuff
+tools/rgb-ambient-probe/bin/
+tools/rgb-ambient-probe/diagnostics/
+
 # .NET build and test output
 **/bin/
 **/obj/
