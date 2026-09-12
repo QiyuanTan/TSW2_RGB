@@ -2,43 +2,43 @@
 
 **Issue:** #3 (backlog item 02)
 
-**Decision:** `NO-GO`
+**Decision:** provisional `NO-GO` for downstream implementation; research incomplete
 
-**Research date:** 2026-09-11
+**Research dates:** 2026-09-11–12
 
 ## Executive result
 
-No source has been validated against a running Train Sim World 2 (TSW2) session for reverser, both door sides, and either headlights or wipers. The required game, locomotive, and visible-state correlation session was not available in the execution environment. Consequently, this work does **not** select a runtime source and does not unblock issues 07 or 11.
+Live BR442 observations now establish candidate reverser HUD indications, separate left/right door indications, and hover-dependent wiper-setting tooltips. The [dated session ledger](br442-live-session.md) records exact capture intervals and interpretations, including restart, pause/resume, locomotive change, and exit. No automated source has yet demonstrated required coverage, reliability, and latency. Consequently, this work selects no production source and does not unblock backlog items 07 or 11 (GitHub #8 and #12). Issue #3 acceptance is incomplete.
 
 Input observation is explicitly rejected as a substitute: a key press cannot prove that the game accepted the command or reveal changes caused by the cab, AI, scenarios, safety systems, pause state, or a different binding.
 
-The only captured observation is a sanitized lifecycle probe showing that the expected game process was absent. It proves the unavailable representation and validator path, not train-state feasibility.
+The initial process-absence probe was insufficient for a feasibility verdict. The live observations supersede that rationale. A provisional `NO-GO` here means insufficient evidence to implement downstream readers, not proof that no usable source exists.
 
 ## Environment and evidence limits
 
 | Item | Recorded value |
 |---|---|
-| Host OS | Windows; build intentionally not asserted because it was not captured by the probe |
-| TSW2 build/store | Not available |
-| Tested locomotive/route | None |
-| Game process during probe | Absent |
-| Capture timestamp | 2026-09-11T20:09:02.9947155Z |
-| Technique | Read-only process enumeration |
+| Host OS | Runtime reports Windows 10.0.28120.0 |
+| TSW2 build/store | Unverified; manifest executable timestamp 2022-06-20 is not a build identifier; user configuration directory is TrainSimWorld2EGS |
+| Observed locomotives | BR442 controls; 1972 Stock identity only; exact scenario not recorded |
+| Game lifecycle | Present, restarted, changed locomotive, then exited normally |
+| Capture timestamps | See the dated session ledger; initial absence probe retained separately |
+| Technique | Read-only process/file metadata and window observation; user operated game controls |
 
 No usernames, installation paths, account identifiers, Steam IDs, save data, memory contents, or secrets were captured.
 
 ## Candidate assessment
 
-Scores use `0` (no evidence/unacceptable), `1` (plausible but unvalidated), and `2` (validated). A score is not evidence of availability. All candidates remain unselected.
+The initial numerical ratings were unsupported and are withdrawn. The qualitative assessment below distinguishes observed facts from untested possibilities. No candidate is selected for production.
 
-| Candidate | Coverage | Authority | Latency/rate | Stability | Setup | Security | Distribution | Recovery | Result |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---|
-| Documented game API / RailDriver interface | 1 | 1 | 0 | 0 | 1 | 2 | 0 | 0 | No public, captured state contract was demonstrated |
-| Stable files or IPC | 0 | 1 | 0 | 0 | 2 | 2 | 2 | 0 | No changing runtime source was observed |
-| Supported telemetry or game plugin | 1 | 2 | 1 | 1 | 0 | 1 | 0 | 1 | Requires vendor-supported access and a live validation build |
-| HUD observation / OCR | 1 | 1 | 0 | 0 | 1 | 2 | 2 | 1 | Some fields may not be visible; false positives remain unmeasured |
-| Input-derived estimates | 0 | 0 | 1 | 0 | 2 | 2 | 2 | 1 | Rejected as non-authoritative and incomplete |
-| Read-only memory inspection | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 | Not attempted; requires explicit risk review and versioned evidence |
+| Candidate | Evidence and coverage/authority | Rate, latency, stability | Setup, security, distribution, recovery |
+|---|---|---|---|
+| Documented game / RailDriver interface | PieHid64.dll present; vendor confirms native controller support, not required state export | Unmeasured; no state protocol validated | Hardware interface found; telemetry access, license and reconnect behavior unvalidated |
+| Files / IPC | Inspected Logs directory has only old crash logs; no current gameplay log there | Unmeasured; no field schema validated | Metadata read-only; other paths and IPC not exhaustively investigated |
+| Telemetry / plugins | No tested state-export plugin | All unmeasured | Supported installation, licensing, security and recovery unvalidated |
+| HUD / tooltip observation | Manually corroborated reverser and wiper labels; side-specific door symbols have unresolved physical semantics | No automated rate/latency/error measurements; pause hides fields and hover loss hides wiper setting | Read-only capture; locale/camera dependence demonstrated; screenshot redistribution not assessed; manual reattachment and visibility recovery observed |
+| Input estimates | Cannot prove command acceptance or externally caused changes | Not tested; insufficient authority regardless of rate | Not selected; confirmed-state use prohibited |
+| Read-only memory | Not attempted; no validated offsets or values | Build/locomotive stability unknown | Separate risk assessment remains necessary; no memory access or redistribution undertaken |
 
 Desk research about generic Unreal Engine facilities does not establish that TSW2 exposes them in its shipping build. Epic documents that Studio Telemetry does not function in shipping builds, while runtime plugins must be packaged by the game project. These facts rule out assuming generic engine facilities are externally available, but do not prove anything about a TSW2-specific interface.
 
@@ -49,17 +49,18 @@ Sources:
 
 ## Capability matrix
 
-`Not tested` means no claim can be made. `Unavailable` is reserved for a source that was present but explicitly reported a field unavailable; no such source was present.
+These are manual observations, not advertised production capabilities. Build identity remains unverified for both locomotives. Missing visual information must not be interpreted as a closed/off state.
 
 | Build / locomotive | Reverser | Left door | Right door | Headlights | Wipers | Pause/menu | Loco change | Loss/exit |
 |---|---|---|---|---|---|---|---|---|
-| No running TSW2 session | Not tested | Not tested | Not tested | Not tested | Not tested | Not tested | Not tested | Process absence captured |
+| BR442 / build unverified | Neutral, reverse, forward HUD samples | White/gray symbols; physical semantics unresolved | White/gray symbols; physical semantics unresolved | Not tested | Off, 1–3 tooltips; 4–5 user-reported only | HUD hidden then restored; tooltip absent in forward view | Changed to 1972 Stock | Manual restart reattachment; eventual process/window absence |
+| 1972 Stock / build unverified | Not tested | Not tested | Not tested | Not tested | Not tested | Overview identity observed | Identity differs from BR442 in same window | Exit observed |
 
 There are no measured observation rates, transition latencies, false positives, or false negatives. Reporting numerical values would fabricate results.
 
 ## Trace inventory and replay
 
-`tests/fixtures/state/process-absent.jsonl` contains the one real observation. Each line conforms to the schema in `tests/fixtures/state/README.md`. Validate ordering, vocabulary, and redaction from the repository root:
+`tests/fixtures/state/process-absent.jsonl` contains the initial absence observation; `game-exited.jsonl` records the final live-session process check. The live visual observations are timestamped prose in the session ledger, with screenshots retained in task history only. They are not independently replayable image fixtures, and this remains an acceptance gap. Validate the JSONL lifecycle fixtures from the repository root:
 
 ```powershell
 pwsh -NoProfile -File tests/fixtures/state/validate-traces.ps1
@@ -97,4 +98,4 @@ Each observation must carry the canonical field, normalized value or `unknown`/`
 
 ## Gate consequence
 
-The result is `NO-GO`. The PRD is revised so the current demonstrable milestone excludes live synchronized train state. Reverser, both doors, and a third system remain product-release gates for any future MVP that claims runtime synchronization. Issues 07 and 11 remain blocked until this experiment produces validated evidence and ADR-004 is superseded.
+The result remains provisional `NO-GO` for downstream implementation. Live observation narrows the research gaps but does not satisfy issue #3 in full. The PRD retains the synchronization release gates. Next work must establish an automated read-only source, physically correlate door semantics, resolve numeric wiper mapping or validate headlights, identify the build, and collect independently replayable captures with measured rate/latency and errors. No production capability is declared until those checks pass.
