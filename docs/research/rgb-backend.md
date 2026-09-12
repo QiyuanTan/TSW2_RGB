@@ -1,23 +1,23 @@
 # ASUS RGB transport research
 
-**Status:** hardware proof blocked; do not use this document to claim support
+**Status:** production transport blocked; do not use this document to claim support
 
-**Research date:** 2026-09-11
+**Research dates:** 2026-09-11 through 2026-09-12
 
 **Issue:** #5 (`04 — Select and prove ASUS RGB transport`)
 
 ## Recommendation
 
-Use the Windows `Windows.Devices.Lights.LampArray` API as the preferred transport, conditional on completing the hardware checklist below. It is an OS API over the open USB HID Lighting and Illumination/LampArray standard, supports Win32 applications, exposes per-lamp positions and virtual-key lookup, and does not require committing or redistributing an ASUS SDK binary.
+No production transport is accepted for the reference environment. Windows `Windows.Devices.Lights.LampArray` remains the preferred standards-based candidate because it is an OS API over the open HID Lighting and Illumination standard, exposes per-lamp positions and virtual-key lookup, and requires no redistributed ASUS SDK binary. It cannot currently meet the product lifecycle because Windows does not grant background/ambient control while TSW2 has focus.
 
-The decision remains **proposed**, not accepted. The reference keyboard exposes a Windows LampArray provider in the local Dynamic Lighting registry, but the current non-interactive environment could not open the provider. No visual assertion, ten-minute soak, or reconnect assertion was fabricated.
+ADR-002 is **blocked**, not accepted. Foreground per-key control and a ten-minute soak passed, but the correctly packaged and prioritized ambient probe remained unavailable. Armoury Crate also failed to gain background control. No ambient smoke, soak, reconnect, or restoration result was fabricated.
 
 ## Reference environment
 
 | Item | Observed value | Evidence method |
 |---|---|---|
-| Date | 2026-09-11 | Local test session |
-| OS | Windows 10 Home China, display version 26H1, build 28120.2912, x64 | Read-only Windows version registry query |
+| Date | 2026-09-11 through 2026-09-12 | Local test sessions |
+| OS | Windows 10 Home China label, display version 26H1, builds 28120.2912 and 28120.3002, x64 | Read-only Windows version registry query |
 | Computer | ASUS ROG Strix G512LV | Read-only PnP inventory |
 | Keyboard | ROG Strix Scope II 96 Wireless through ROG Omni Receiver | Installed ASUS package plus connected ASUS VID `0B05`, PID `1ACE` |
 | Connection | 2.4 GHz receiver | Installed ASUS device package; receiver present in PnP |
@@ -25,7 +25,7 @@ The decision remains **proposed**, not accepted. The reference keyboard exposes 
 | Armoury Crate | Installed; exact UI version not recorded | Installed-package inventory |
 | Lighting service | `LightingService` running | Windows service query |
 | ASUS Aura SDK | 3.07.05, x64/x86, ASUS-signed | Installed-package and Authenticode inspection |
-| Dynamic Lighting | Globally disabled during automation | `HKCU\Software\Microsoft\Lighting` read-only query |
+| Dynamic Lighting | Enabled for manual tests; foreground override disabled; ambient probe stored in priority slot 1 | Sanitized `HKCU\Software\Microsoft\Lighting` read-only query and Settings observation |
 | LampArray provider | Windows and ASUS providers registered for PID `1ACE` | Sanitized read-only registry query |
 
 Device instance IDs, serial-like values, user paths, and diagnostic archives are intentionally omitted.
@@ -39,7 +39,69 @@ Device instance IDs, serial-like values, user paths, and diagnostic archives are
 3. `DeviceInformation.FindAllAsync(selector)` returned the structured `provider_unavailable` diagnostic for HRESULT `0x80070002` in the non-interactive test environment.
 4. A read-only registry check found historical/current provider registrations for the target PID, but Dynamic Lighting was disabled.
 
-Conclusion: the standards-based path is credible and present, but not proven operational. Run the probe interactively after enabling Dynamic Lighting; do not change the setting automatically.
+Conclusion: the initial non-interactive attempt established provider presence but could not prove control. The later interactive validation below proved operation after Dynamic Lighting was enabled; the probe never changes that setting automatically.
+
+### Interactive LampArray validation
+
+After Dynamic Lighting was enabled for the interactive user, the revised probe opened its own foreground control window and successfully acquired the ROG Omni Receiver LampArray. The receiver reported 101 lamps, virtual-key support, and a 33 ms minimum update interval.
+
+The foreground ten-key smoke test displayed the ten expected distinct colors on the spatially separated keys. The foreground 600-second soak completed with the following sanitized result:
+
+```text
+mode=Soak; seconds=600.11; frames=9757; errors=0; p95_ms=2.602; private_bytes_delta=1925120
+```
+
+No visible stutter was observed. Normal completion emitted `cleared` and `released`; the test keys went black and normal Windows/Armoury lighting resumed. The 1,925,120-byte private-memory increase (approximately 1.84 MiB) is not a material leak signal for this bounded run. These results prove the device path but do not satisfy the product lifecycle because TSW2 could not retain focus.
+
+The first smoke attempt exposed an important arbitration constraint: an unpackaged console child hosted by Windows Terminal does not itself own a foreground window, so accepted writes were not applied. Smoke and soak modes now create and maintain a focused window, verify `IsAvailable`, and report loss of control. Settings priority applies to registered ambient/background controllers and is not a substitute for foreground ownership.
+
+### Background/game-focus diagnostic
+
+`tools/rgb-ambient-probe` is a minimal x64 .NET Framework console program compiled with the Windows-provided compiler and WinRT metadata. It has no third-party runtime or SDK dependency. A sparse manifest gives only this executable package identity and declares Microsoft's `com.microsoft.windows.lighting` app extension; generated executables and placeholder package assets stay under the ignored `bin` directory.
+
+Build and validate without registering or touching hardware:
+
+```powershell
+powershell.exe -NoProfile -File .\tests\rgb-ambient-probe\Run-Tests.ps1
+```
+
+Registration changes package state for the current user and must be explicitly invoked from a normal, non-administrator PowerShell session:
+
+```powershell
+powershell.exe -NoProfile -File .\tools\rgb-ambient-probe\Register-AmbientProbe.ps1
+```
+
+After registration, open **Settings > Personalization > Dynamic Lighting** and move **TSW2 RGB Ambient Probe** to the top of **Background light control**. Then run the executable and switch focus to TSW2 during the ten-second start delay:
+
+```powershell
+.\tools\rgb-ambient-probe\bin\AmbientRgbProbe.exe --mode smoke --duration-seconds 15 --start-delay-seconds 10 --accept-lighting-control
+.\tools\rgb-ambient-probe\bin\AmbientRgbProbe.exe --mode soak --duration-seconds 600 --frames-per-second 20 --start-delay-seconds 10 --accept-lighting-control
+```
+
+The ambient probe refuses to run without its exact package identity and fails if background availability is absent or lost. Remove the development registration after testing with:
+
+```powershell
+powershell.exe -NoProfile -File .\tools\rgb-ambient-probe\Unregister-AmbientProbe.ps1
+```
+
+When Windows denies ambient availability, capture a sanitized diagnostic bundle containing package/extension state, Dynamic Lighting registry value metadata, relevant services/processes, device summaries, a timed `IsAvailable` observation, and matching Application/System events:
+
+```powershell
+powershell.exe -NoProfile -File .\tools\rgb-ambient-probe\Get-AmbientDiagnostics.ps1 -ObservationSeconds 30
+```
+
+The generated NDJSON file is written under the ignored `tools/rgb-ambient-probe/diagnostics` directory. User-profile paths, device instance identifiers, and user SIDs are redacted; the collector is read-only except for writing that local report.
+
+The 2026-09-12 capture on build `28120.3002` established all of the following simultaneously:
+
+- Package `QiyuanTan.TSW2RGB.AmbientProbe` was registered with status `Ok` and exactly one lighting app extension.
+- The running executable had the matching package family identity.
+- `AmbientLightingEnabled=1`, `ControlledByForegroundApp=0`, and the probe package family occupied priority slot 1 across all 20 recorded lighting entries.
+- ASUS `LightingService` and `AsHidCtrlService` were running; the ASUS `AacAmbientLighting` controller was also present.
+- LampArray VID `0B05`, PID `1ACE` was connected, enabled, at brightness 1.0, typed as a keyboard, and exposed 101 lamps with a 33 ms minimum update interval.
+- `IsAvailable` stayed false from the initial observation through the end of the 30.09-second sample, with no availability transition and no relevant Application or System event emitted.
+
+The ambient smoke test therefore submitted no frame and emitted `clear_skipped`. Armoury Crate independently failed to obtain background control when placed first with foreground override disabled. The evidence isolates the failure to Windows ambient arbitration or the ASUS provider on this preview environment; it does not distinguish which component is defective because neither exposed a diagnostic event. Rebooting, updating to a stable Windows build or newer ASUS firmware/provider, and repeating this exact capture are the bounded next experiments.
 
 ### ASUS Aura SDK 3.07.05
 
@@ -67,8 +129,8 @@ OpenRGB was inspected as the most credible compatible implementation. Its curren
 | Packaging/signing | Foreground probe is unpackaged; background control requires package identity/app extension and normal application-signing review | Vendor DLL is signed; redistribution rights remain unknown | Shipping or deriving code requires GPL and driver/signing review |
 | Arbitration | Windows foreground/background priority | Exclusive `SwitchMode`/`ReleaseControl` | Likely conflicts with vendor software |
 | Cleanup/restore | Release reference; Windows selects next controller/autonomous mode | Explicit release, behavior unproven | Device-specific and unproven |
-| Reference result | Provider present; API open blocked | Hang/native crash | Exact device support not found |
-| Decision | **Proposed, proof pending** | Rejected | Rejected |
+| Reference result | Foreground passed; correctly configured ambient lease denied | Hang/native crash; Armoury background control also unavailable | Exact device support not found |
+| Decision | **Blocked for production on reference environment** | Rejected | Rejected |
 
 ## Supported-device matrix
 
@@ -76,7 +138,7 @@ This matrix records evidence, not marketing compatibility. A device is supported
 
 | Device | Connection | Provider/API evidence | Per-key proof | Cleanup/reconnect proof | Status |
 |---|---|---|---|---|---|
-| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | LampArray providers registered; API discovery blocked in the non-interactive session | Not run | Not run | **Candidate only — unsupported pending manual proof** |
+| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | Foreground control passed; packaged ambient lease denied | Foreground ten-key/600-second tests passed; ambient frame blocked | Foreground clear/release passed; ambient lifecycle unavailable | **Unsupported for production on tested Windows/provider build** |
 | Any other ASUS keyboard | Any | Not evaluated | Not run | Not run | **Unsupported / unknown** |
 
 Firmware is deliberately `unknown` until it is copied from Armoury Crate during the manual run. No compatibility should be inferred for USB or Bluetooth from the receiver observation.
@@ -110,21 +172,23 @@ powershell.exe -NoProfile -File .\tools\rgb-probe\Invoke-RgbProbe.ps1 -Mode Smok
 powershell.exe -NoProfile -File .\tools\rgb-probe\Invoke-RgbProbe.ps1 -Mode Soak -DurationSeconds 600 -FramesPerSecond 20 -AcceptLightingControl
 ```
 
-The explicit switch prevents accidental lighting control. Output is newline-delimited JSON with stable diagnostic codes and no raw device IDs. The probe clears lamps in `finally` and releases its LampArray reference. A hard process termination cannot run `finally`; Windows should reassign control according to its priority policy, which remains a required manual observation.
+The explicit switch prevents accidental lighting control. Smoke and soak modes open a small topmost window because Windows applies foreground `LampArray` writes only while the calling application has focus; keep that window focused for the run. The probe checks `IsConnected`, `IsAvailable`, virtual-key support, and the device minimum update interval instead of treating accepted-but-inactive writes as success. Output is newline-delimited JSON with stable diagnostic codes and no raw device IDs. The probe clears lamps in `finally` and releases its LampArray reference. A hard process termination cannot run `finally`; Windows should reassign control according to its priority policy, which remains a required manual observation.
 
 ## Hardware acceptance checklist
 
 All unchecked items block acceptance and ADR promotion:
 
 - [ ] Record Armoury Crate and keyboard firmware versions.
-- [ ] Enable Dynamic Lighting manually and confirm `Discover` reports the Scope II 96.
-- [ ] Run `Smoke`; visually confirm all ten named, spatially distinct keys show their distinct expected colors.
-- [ ] Run the 600-second soak; attach the final `run_complete` line and confirm zero errors, acceptable p95 submission time, no obvious stutter, and no material private-byte growth.
-- [ ] Confirm `cleared` makes the test keys black before release.
-- [ ] Confirm normal exit returns control to the expected Windows/Armoury lighting.
+- [x] Enable Dynamic Lighting manually and confirm `Discover` reports the ROG Omni Receiver serving the Scope II 96.
+- [x] Run the foreground `Smoke`; visually confirm all ten named, spatially distinct keys show their distinct expected colors.
+- [x] Run the foreground 600-second soak; record zero errors, acceptable p95 submission time, no obvious stutter, and no material private-byte growth.
+- [x] Register and prioritize the ambient probe with foreground override disabled; record that Windows denied `IsAvailable` before ambient smoke could submit a frame.
+- [ ] Repeat ambient smoke and the 600-second soak while TSW2 retains focus (blocked until Windows/ASUS grants an ambient lease).
+- [ ] Confirm ambient `cleared` makes the test keys black before release.
+- [ ] Confirm ambient normal exit returns control to the expected Windows/Armoury lighting.
 - [ ] Terminate the probe process during a run and record restoration behavior.
 - [ ] Disconnect and reconnect the keyboard/receiver, rerun `Discover`, and repeat a short smoke test.
-- [ ] Disable the service/provider or use an unsupported device and confirm a clear diagnostic plus safe exit.
+- [x] Confirm an unavailable provider returns the structured `provider_unavailable` diagnostic plus exit code 10 without changing lighting.
 
 ## Sources
 

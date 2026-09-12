@@ -102,6 +102,42 @@ function Initialize-LampArrayTypes {
     $script:ColorType = [Windows.Devices.Lights.LampArray].GetMethod('SetColor').GetParameters()[0].ParameterType
 }
 
+function New-LampArrayControlWindow {
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -AssemblyName System.Drawing
+
+    $form = [System.Windows.Forms.Form]::new()
+    $form.Text = 'TSW2 RGB LampArray diagnostic'
+    $form.ClientSize = [System.Drawing.Size]::new(560, 110)
+    $form.StartPosition = [System.Windows.Forms.FormStartPosition]::CenterScreen
+    $form.TopMost = $true
+    $form.MinimizeBox = $false
+    $form.MaximizeBox = $false
+
+    $label = [System.Windows.Forms.Label]::new()
+    $label.AutoSize = $false
+    $label.Dock = [System.Windows.Forms.DockStyle]::Fill
+    $label.Padding = [System.Windows.Forms.Padding]::new(16)
+    $label.TextAlign = [System.Drawing.ContentAlignment]::MiddleCenter
+    $label.Text = "Keep this window focused while the diagnostic controls the keyboard.`r`nClosing or switching away safely ends effective LampArray control."
+    $form.Controls.Add($label)
+
+    $form.Show()
+    $form.Activate()
+    $form.BringToFront()
+    [System.Windows.Forms.Application]::DoEvents()
+    $form
+}
+
+function Update-ControlWindow {
+    param([Parameter(Mandatory)] [System.Windows.Forms.Form] $Window)
+
+    [System.Windows.Forms.Application]::DoEvents()
+    if (-not $Window.Visible -or $Window.IsDisposed) {
+        throw 'The LampArray control window was closed.'
+    }
+}
+
 function Get-LampArrayDevices {
     $selector = [Windows.Devices.Lights.LampArray]::GetDeviceSelector()
     $operation = [Windows.Devices.Enumeration.DeviceInformation]::FindAllAsync($selector)
@@ -168,6 +204,7 @@ if ($Mode -in @('Smoke', 'Soak') -and -not $AcceptLightingControl) {
 $lampArray = $null
 $probeExitCode = 0
 $cleanupFailed = $false
+$controlWindow = $null
 try {
     Initialize-LampArrayTypes
     $devices = @(Get-LampArrayDevices)
@@ -186,10 +223,31 @@ try {
         exit 4
     }
 
+    $controlWindow = New-LampArrayControlWindow
     $lampArray = Open-LampArray $devices[$DeviceIndex]
     if ($null -eq $lampArray) {
         Write-Diagnostic 'device_unavailable' 'Windows found the device, but it is not currently available to this process.' 'error'
         exit 5
+    }
+
+    $availabilityWait = [System.Diagnostics.Stopwatch]::StartNew()
+    while (-not $lampArray.IsAvailable -and $availabilityWait.Elapsed.TotalSeconds -lt 3) {
+        Update-ControlWindow $controlWindow
+        $controlWindow.Activate()
+        Start-Sleep -Milliseconds 100
+    }
+    if (-not $lampArray.IsConnected) {
+        Write-Diagnostic 'device_disconnected' 'Windows opened the LampArray, but the device is disconnected.' 'error'
+        exit 7
+    }
+    if (-not $lampArray.IsAvailable) {
+        Write-Diagnostic 'control_unavailable' 'The LampArray is not available to this focused process. Check Dynamic Lighting foreground control and competing RGB software.' 'error'
+        exit 8
+    }
+    Write-Diagnostic 'control_acquired' ("lamps={0}; supports_virtual_keys={1}; min_update_ms={2:N3}" -f $lampArray.LampCount, $lampArray.SupportsVirtualKeys, $lampArray.MinUpdateInterval.TotalMilliseconds)
+    if (-not $lampArray.SupportsVirtualKeys) {
+        Write-Diagnostic 'virtual_keys_unsupported' 'The LampArray does not expose virtual-key mappings required by this probe.' 'error'
+        exit 9
     }
 
     $resolved = @()
@@ -212,14 +270,20 @@ try {
         foreach ($item in $resolved) {
             Set-KeyColor $lampArray $item.Indices $item.Key.Red $item.Key.Green $item.Key.Blue
         }
-        Start-Sleep -Seconds ([math]::Min($DurationSeconds, 15))
+        while ($started.Elapsed.TotalSeconds -lt [math]::Min($DurationSeconds, 15)) {
+            Update-ControlWindow $controlWindow
+            if (-not $lampArray.IsAvailable) { throw 'LampArray control was lost during the smoke test.' }
+            Start-Sleep -Milliseconds 50
+        }
     }
     else {
-        $frameIntervalMs = 1000.0 / $FramesPerSecond
+        $frameIntervalMs = [math]::Max((1000.0 / $FramesPerSecond), $lampArray.MinUpdateInterval.TotalMilliseconds)
         $frame = 0
         while ($started.Elapsed.TotalSeconds -lt $DurationSeconds) {
+            Update-ControlWindow $controlWindow
             $frameWatch = [System.Diagnostics.Stopwatch]::StartNew()
             try {
+                if (-not $lampArray.IsAvailable) { throw 'LampArray control was lost during the soak test.' }
                 for ($i = 0; $i -lt $resolved.Count; $i++) {
                     $rgb = Convert-HsvToRgb ((($frame + ($i * 7)) % 120) / 120.0)
                     Set-KeyColor $lampArray $resolved[$i].Indices $rgb[0] $rgb[1] $rgb[2]
@@ -282,6 +346,10 @@ finally {
             [GC]::WaitForPendingFinalizers()
             Write-Diagnostic 'released' 'The LampArray reference was released; Windows may restore the next eligible lighting controller.'
         }
+    }
+    if ($null -ne $controlWindow) {
+        $controlWindow.Close()
+        $controlWindow.Dispose()
     }
 }
 

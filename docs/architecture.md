@@ -106,4 +106,4 @@ Any issue that changes a boundary above updates this document and adds or amends
 
 ## RGB transport status
 
-ADR-002 proposes Windows HID LampArray as the ASUS transport boundary. The decision is conditional on the outstanding hardware proof recorded in `docs/research/rgb-backend.md`; no production backend or device support claim is authorized yet. Normalized physical keys are translated to Windows virtual keys and resolved to lamp indices only inside the future adapter. Core, profile, and rule code must never store LampArray indices.
+ADR-002 blocks production ASUS backend work because Windows HID LampArray passed foreground testing but failed to grant required ambient/background control on the reference environment. No transport or device support claim is authorized. If a future environment passes the gate, normalized physical keys will be translated to Windows virtual keys and resolved to lamp indices only inside the adapter; core, profile, and rule code must never store LampArray indices.

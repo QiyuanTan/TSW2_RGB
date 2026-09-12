@@ -1,7 +1,7 @@
 # ADR-002: RGB transport
 
-- Status: Proposed — hardware gate open
-- Date: 2026-09-11
+- Status: Blocked — no production transport accepted
+- Date: 2026-09-12
 - Decision owners: project maintainers
 
 ## Context
@@ -10,19 +10,19 @@ The MVP needs per-key RGB on a target ASUS ROG keyboard, safe ownership release,
 
 ## Decision
 
-Implement the ASUS backend against Windows `Windows.Devices.Lights.LampArray`, provided the hardware checklist in `docs/research/rgb-backend.md` passes. Translate normalized keys at the adapter boundary through Windows `VirtualKey` and `GetIndicesForKey`. Treat an absent device, unavailable device, and unmapped key as explicit recoverable diagnostics.
+Do not implement a production ASUS backend yet. Windows `Windows.Devices.Lights.LampArray` remains the preferred standards-based candidate, but it failed the required game-focus lifecycle on the reference environment: foreground control passed, while a correctly registered and prioritized ambient controller remained unavailable. Translate normalized keys through Windows `VirtualKey` and `GetIndicesForKey` only if a later environment passes the ambient gate.
 
-Do not merge a production adapter or claim Scope II 96 support while this ADR is Proposed. Promote it to Accepted only after the dated ten-key, ten-minute soak, clear, normal/forced exit, and reconnect evidence is recorded.
+Do not merge a production adapter or claim Scope II 96 support while this ADR is Blocked. Reconsider LampArray only after a Windows/ASUS update makes the packaged ambient controller available and the dated ten-key, ten-minute soak, clear, normal/forced exit, and reconnect evidence is recorded.
 
-Foreground control is sufficient for the diagnostic probe. A production background integration must use package identity and the `com.microsoft.windows.lighting` app extension, or document why foreground-only operation meets the product lifecycle. This packaging requirement is deferred to the backend/release issues.
+Foreground control is insufficient for the product because TSW2 must retain focus. The minimal ambient diagnostic had valid sparse package identity, one `com.microsoft.windows.lighting` extension, priority slot 1, Dynamic Lighting enabled, and foreground override disabled. Windows nevertheless reported the connected and enabled LampArray as unavailable for the complete observation. Armoury Crate also failed to obtain background control under the same settings. This is a platform/provider gate, not authorization to bypass Windows arbitration or guess a direct-HID protocol.
 
 ## Consequences
 
 - No ASUS SDK binary or COM interop assembly is distributed.
-- Windows owns device arbitration and restoration to the next eligible controller or firmware autonomous mode.
+- Windows owns device arbitration and restoration, but the tested Windows/ASUS combination did not grant an ambient lease.
 - Supported hardware is limited to devices that expose HID LampArray and map required virtual keys.
 - Dynamic Lighting must be enabled and user/app priority may affect availability.
-- Reconnect should use `DeviceWatcher` plus `LampArray.AvailabilityChanged` in the production backend.
+- A future LampArray backend would use `DeviceWatcher` plus `LampArray.AvailabilityChanged`, but production work is blocked.
 - The adapter must submit complete key colors without persisting a hard-coded lamp-index table.
 
 ## Rejected alternatives
