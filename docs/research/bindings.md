@@ -97,7 +97,9 @@ These are safety requirements, not claims about unobserved TSW2 writes.
 
 ## Reload and write behavior
 
-For the controlled run, Windows `FileSystemWatcher` reported paired `Changed` notifications for `PP_aps.sav` at relative times T+0 s, T+3 s, and T+11 s, correlating with the three UI edits, plus another pair at T+108 s. It reported no create, delete, or rename. File length changed from 253,750 to 256,762 bytes and SHA-256 changed. Alt+F4 shutdown produced no additional save event. An earlier launch/exit updated the timestamp while preserving length and content hash, proving metadata-only false positives occur.
+For the controlled run, Windows `FileSystemWatcher` reported paired `Changed` notifications for `PP_aps.sav` at relative times T+0 s, T+3 s, and T+11 s, correlating with the three UI edits, plus another pair at T+108 s. It reported no create, delete, or rename. File length changed from 253,750 to 256,762 bytes and SHA-256 changed. Alt+F4 shutdown produced no additional profile-save event.
+
+A separate isolated run launched to the main menu and exited through the normal menu without changing bindings. `firsttimeexperience.sav` emitted multiple `Changed` events, confirming the watcher was active, but `PP_aps.sav` emitted none and remained byte-identical: same 256,762-byte length, last-write timestamp, and SHA-256. Therefore binding changes are persisted during the edit/apply flow rather than deferred to normal shutdown. An earlier launch/exit updated the profile timestamp while preserving length and content hash, proving metadata-only false positives can also occur.
 
 This is evidence of in-place writes for the tested build, but filesystem events may be coalesced or missed. Use debounced polling as the cross-build fallback rather than relying solely on `FileSystemWatcher`:
 
