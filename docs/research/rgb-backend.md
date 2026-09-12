@@ -1,6 +1,6 @@
 # ASUS RGB transport research
 
-**Status:** LampArray selected and lifecycle proof passed; keyboard firmware capture pending
+**Status:** LampArray selected and validated on the reference device
 
 **Research dates:** 2026-09-11 through 2026-09-12
 
@@ -10,7 +10,7 @@
 
 Select Windows `Windows.Devices.Lights.LampArray` for the production ASUS transport. It is an OS API over the open HID Lighting and Illumination standard, exposes per-lamp positions and virtual-key lookup, and requires no redistributed ASUS SDK binary. Foreground and packaged ambient smoke tests now prove per-key control on the reference keyboard while TSW2 retains focus.
 
-The critical discovery is that WDL ownership transfer is asynchronous and unusually slow on the reference preview Windows build. The ambient probe initially observed `IsAvailable=false`, then acquired control after approximately 66 seconds when allowed to wait. Game-focused smoke, ten-minute soak, normal exit, forced process termination, and receiver reconnect tests passed. This selects and proves the transport lifecycle. Keyboard firmware capture is the only incomplete environment field; no value is inferred from the successful device tests.
+The critical discovery is that WDL ownership transfer is asynchronous and unusually slow on the reference preview Windows build. The ambient probe initially observed `IsAvailable=false`, then acquired control after approximately 66 seconds when allowed to wait. Game-focused smoke, ten-minute soak, normal exit, forced process termination, and receiver reconnect tests passed. This selects and proves the transport lifecycle on the recorded device, firmware, connection, and software stack.
 
 ## Reference environment
 
@@ -21,14 +21,32 @@ The critical discovery is that WDL ownership transfer is asynchronous and unusua
 | Computer | ASUS ROG Strix G512LV | Read-only PnP inventory |
 | Keyboard | ROG Strix Scope II 96 Wireless through ROG Omni Receiver | Installed ASUS package plus connected ASUS VID `0B05`, PID `1ACE` |
 | Connection | 2.4 GHz receiver | Installed ASUS device package; receiver present in PnP |
-| Keyboard firmware | Unknown | Must be copied from Armoury Crate during manual run |
-| Armoury Crate | Armoury Crate Service 6.5.14.0; exact UI version not recorded | Installed-program inventory |
+| Keyboard firmware | 8.00.05 | Armoury Crate Firmware Update UI |
+| Armoury Crate | UWP app 6.5.14.0; service 6.5.14.0 | Armoury Crate UI and installed-program inventory |
 | Lighting service | AURA Service 3.10.12; `LightingService` running | Installed-program inventory and Windows service query |
 | ASUS Aura SDK | 3.07.05, x64/x86, ASUS-signed | Installed-package and Authenticode inspection |
 | Dynamic Lighting | Enabled for manual tests; foreground override disabled; ambient probe stored in priority slot 1 | Sanitized `HKCU\Software\Microsoft\Lighting` read-only query and Settings observation |
 | LampArray provider | Windows and ASUS providers registered for PID `1ACE` | Sanitized read-only registry query |
 
 Device instance IDs, serial-like values, user paths, and diagnostic archives are intentionally omitted.
+
+Relevant ASUS component versions captured from Armoury Crate on 2026-09-12:
+
+| Component | Version |
+|---|---|
+| ROG Live Service | 3.5.11.0 |
+| ArmouryDevice | 4.2.5.4 |
+| ASUS Ambient HAL | 7.23.0.0 |
+| ASUS Keyboard HAL | 1.3.46.0 |
+| GameSDK | 1.0.5.0 |
+| KeyboardSDK | 3.00.97 |
+| MainSDK / MainSDKPlugin | 2.01.56 / 1.01.11 |
+| UnifyDongleSDK | 1.00.12 |
+| Armoury Crate Keyboard plugin | 1.3.13 |
+| ROG Omni Receiver component | 4.02.03 |
+| Scope II 96 HTML/device module | 4.03.88 |
+
+The Armoury Crate device page separately labels firmware as 8.00.05; the 4.03.88 module version must not be reported as keyboard firmware.
 
 ## Reproducible observations
 
@@ -169,10 +187,10 @@ This matrix records evidence, not marketing compatibility. A device is supported
 
 | Device | Connection | Provider/API evidence | Per-key proof | Cleanup/reconnect proof | Status |
 |---|---|---|---|---|---|
-| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | LampArray foreground and packaged ambient control passed after approximately 66-second handoffs; Aura REST inventory returned HTTP 500 | Foreground and game-focused ambient ten-key/600-second tests passed | Foreground, ambient normal cleanup, forced-exit restoration, and disconnect/reconnect recovery passed | **Validated on tested connection; firmware version pending** |
+| ROG Strix Scope II 96 Wireless (firmware 8.00.05, PID `1ACE`) | ROG Omni Receiver component 4.02.03, 2.4 GHz | LampArray foreground and packaged ambient control passed after approximately 66-second handoffs; Aura REST inventory returned HTTP 500 | Foreground and game-focused ambient ten-key/600-second tests passed | Foreground, ambient normal cleanup, forced-exit restoration, and disconnect/reconnect recovery passed | **Validated on this firmware and connection** |
 | Any other ASUS keyboard | Any | Not evaluated | Not run | Not run | **Unsupported / unknown** |
 
-Firmware is deliberately `unknown` until it is copied from Armoury Crate during the manual run. No compatibility should be inferred for USB or Bluetooth from the receiver observation.
+No compatibility should be inferred for USB, Bluetooth, other firmware, or other ASUS keyboards from the receiver observation.
 
 ## Key translation
 
@@ -209,7 +227,7 @@ The explicit switch prevents accidental lighting control. Smoke and soak modes o
 
 All unchecked items block acceptance and ADR promotion:
 
-- [ ] Record Armoury Crate and keyboard firmware versions.
+- [x] Record Armoury Crate 6.5.14.0, keyboard firmware 8.00.05, receiver component 4.02.03, and the relevant ASUS service/HAL/SDK versions.
 - [x] Enable Dynamic Lighting manually and confirm `Discover` reports the ROG Omni Receiver serving the Scope II 96.
 - [x] Run the foreground `Smoke`; visually confirm all ten named, spatially distinct keys show their distinct expected colors.
 - [x] Run the foreground 600-second soak; record zero errors, acceptable p95 submission time, no obvious stutter, and no material private-byte growth.

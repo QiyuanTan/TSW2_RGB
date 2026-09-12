@@ -1,6 +1,6 @@
 # ADR-002: RGB transport
 
-- Status: Accepted — LampArray selected; hardware lifecycle proof passed
+- Status: Accepted
 - Date: 2026-09-12
 - Decision owners: project maintainers
 
@@ -12,7 +12,7 @@ The MVP needs per-key RGB on a target ASUS ROG keyboard, safe ownership release,
 
 Select Windows `Windows.Devices.Lights.LampArray` as the ASUS RGB transport. It is standards-based, requires no redistributed ASUS binary, exposes per-key virtual-key lookup, and has now passed foreground and game-focused ambient smoke and ten-minute soak tests on the reference device. Translate normalized keys through Windows `VirtualKey` and `GetIndicesForKey` only inside the adapter.
 
-The required smoke, soak, normal/forced exit, and disconnect/reconnect lifecycle checks passed. Issue #5 may close after the remaining keyboard firmware version is added to the environment record; production backend issue 09 remains gated on that documentation update.
+The required smoke, soak, normal/forced exit, and disconnect/reconnect lifecycle checks passed. The keyboard firmware and relevant ASUS software stack are recorded, so issue #5 may close and production backend issue 09 may proceed against this decision.
 
 Foreground control is insufficient because TSW2 must retain focus. The packaged ambient controller initially appeared unavailable, but a longer observation proved that Windows transferred control after 65.643 seconds. Ten spatially distinct keys then displayed their expected colors while TSW2 retained focus, with zero submission errors. Delayed arbitration is therefore a required lifecycle state rather than an unsupported-provider result. The diagnostic probe waits a bounded interval; a production adapter must remain event-driven and recover when `IsAvailable` changes instead of failing startup after a short timeout.
 
