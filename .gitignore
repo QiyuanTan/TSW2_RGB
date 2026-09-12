@@ -1,2 +1,23 @@
+# rgb probe stuff
 tools/rgb-ambient-probe/bin/
 tools/rgb-ambient-probe/diagnostics/
+
+# .NET build and test output
+**/bin/
+**/obj/
+TestResults/
+artifacts/
+.dotnet/
+dotnet-install.ps1
+.dotnet-sdk.zip
+.dotnet-home/
+.nuget/
+
+# IDE and user-local files
+.vs/
+.vscode/
+*.suo
+*.user
+
+# Codex workspace metadata
+.codex/

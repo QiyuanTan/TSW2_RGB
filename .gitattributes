@@ -1,0 +1,6 @@
+* text=auto
+
+# dotnet format enforces the repository's LF policy on every platform.
+*.cs text eol=lf
+*.csproj text eol=lf
+

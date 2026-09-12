@@ -23,8 +23,8 @@ Required:
 - Reload bindings after a file change without restarting the application.
 - Address individual keyboard LEDs through a replaceable RGB backend.
 - Render static semantic colors.
-- Synchronize authoritative reverser, left/right door, and at least one of headlight or wiper state.
-- Show safety acknowledgement demand if a sufficiently reliable source is found.
+- Treat confirmed runtime synchronization as deferred until ADR-004 is superseded by validated acquisition evidence. The current demonstrable milestone must not claim synchronized reverser, door, headlight, wiper, or safety state.
+- Permit short-lived input feedback only when clearly represented as optimistic and never as confirmed simulator state.
 - Prioritize warning/event/state/static layers deterministically.
 - Degrade per feature when bindings, state sources, or hardware are unavailable.
 - Restore or relinquish keyboard lighting on shutdown.
@@ -54,6 +54,8 @@ Input observation can create short optimistic feedback, but it must expire and m
 
 ## MVP release gates
 
+Issue 02 concluded `NO-GO` because no runtime source could be validated in the available environment. Accordingly, the current demonstrable milestone is limited to binding-driven/static lighting and explicitly labeled optimistic feedback. A future runtime-synchronized MVP must satisfy all gates below; the acquisition-related gates are not waived or silently relaxed.
+
 1. A captured custom binding fixture resolves correctly and a changed binding moves the LED after reload.
 2. A hardware smoke test sets and clears at least ten distinct keys without visible stutter.
 3. Reverser and both door sides are driven by an authoritative or validated state source; a third system is also synchronized.
@@ -62,6 +64,8 @@ Input observation can create short optimistic feedback, but it must expire and m
 6. Reader/device failure does not crash the coordinator; unaffected controls continue.
 7. Normal exit, TSW2 exit, and handled device disconnect run cleanup and restore/relinquish lighting.
 8. Automated unit/contract tests pass; hardware and game-integration results are recorded in the release checklist.
+
+Until ADR-004 is superseded, gates 3 and 4 are `BLOCKED`, not `PASS` or `DEFERRED`, and runtime reader implementation issues remain blocked.
 
 ## Open decisions
 
