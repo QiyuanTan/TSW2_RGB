@@ -43,4 +43,14 @@ if ($LASTEXITCODE -ne 2) { throw "Ambient lighting guard failed: $guardOutput" }
 $guardDiagnostic = $guardOutput | ConvertFrom-Json
 if ($guardDiagnostic.code -ne 'consent_required') { throw "Unexpected guard diagnostic: $guardOutput" }
 
-Write-Output 'PASS: scripts, identity manifests, compilation, and hardware-free self-test'
+$probeSource = Get-Content -Raw -LiteralPath (Join-Path $probeDirectory 'AmbientRgbProbe.cs')
+if ($probeSource -notmatch '--availability-timeout-seconds.*, 120, 1, 600') {
+    throw 'Ambient control must use the documented bounded 120-second default wait.'
+}
+foreach ($diagnosticCode in @('ambient_control_waiting', 'ambient_control_pending', 'ambient_control_unavailable')) {
+    if ($probeSource -notmatch [regex]::Escape($diagnosticCode)) {
+        throw "Missing stable delayed-handoff diagnostic: $diagnosticCode"
+    }
+}
+
+Write-Output 'PASS: scripts, identity manifests, compilation, bounded handoff wait, and hardware-free self-test'

@@ -103,6 +103,14 @@ internal static class AmbientRgbProbe
         return color;
     }
 
+    private static double Percentile95(IEnumerable<double> values)
+    {
+        double[] sorted = values.OrderBy(value => value).ToArray();
+        if (sorted.Length == 0) return 0;
+        int index = Math.Max(0, (int)Math.Ceiling(sorted.Length * 0.95) - 1);
+        return sorted[index];
+    }
+
     private static void SetKeyColor(dynamic lampArray, int[] indices, byte red, byte green, byte blue)
     {
         lampArray.SetSingleColorForIndices(CreateColor(red, green, blue), indices);
@@ -136,6 +144,8 @@ internal static class AmbientRgbProbe
         {
             if (ProbeKeys.Length != 10 || ProbeKeys.Select(value => value.Key).Distinct().Count() != 10)
                 return 1;
+            if (Percentile95(Enumerable.Range(1, 100).Select(value => (double)value)) != 95)
+                return 1;
             Diagnostic("self_test_passed", "Pure ambient probe validation passed; no device APIs were invoked.");
             return 0;
         }
@@ -155,7 +165,14 @@ internal static class AmbientRgbProbe
             int duration = ArgumentInt(args, "--duration-seconds", mode == "soak" ? 600 : 15, 1, 3600);
             int fps = ArgumentInt(args, "--frames-per-second", 20, 1, 60);
             int startDelay = ArgumentInt(args, "--start-delay-seconds", 10, 0, 60);
+            int availabilityTimeout = ArgumentInt(args, "--availability-timeout-seconds", 120, 1, 600);
             int deviceIndex = ArgumentInt(args, "--device-index", 0, 0, 64);
+
+            Console.CancelKeyPress += delegate(object sender, ConsoleCancelEventArgs eventArgs)
+            {
+                eventArgs.Cancel = true;
+                stopping = true;
+            };
 
             if (!HasPackageIdentity())
             {
@@ -220,10 +237,35 @@ internal static class AmbientRgbProbe
             }
 
             Stopwatch availabilityWait = Stopwatch.StartNew();
-            while (!lampArray.IsAvailable && availabilityWait.Elapsed.TotalSeconds < 5) Thread.Sleep(100);
+            int nextProgressSecond = 10;
+            if (!lampArray.IsAvailable)
+                Diagnostic("ambient_control_waiting", "Waiting for Windows Dynamic Lighting to transfer background control; timeout_seconds=" + availabilityTimeout + ".");
+            while (!stopping && lampArray.IsConnected && !lampArray.IsAvailable &&
+                availabilityWait.Elapsed.TotalSeconds < availabilityTimeout)
+            {
+                if (availabilityWait.Elapsed.TotalSeconds >= nextProgressSecond)
+                {
+                    Diagnostic("ambient_control_pending", string.Format(CultureInfo.InvariantCulture,
+                        "elapsed_seconds={0:F1}; timeout_seconds={1}", availabilityWait.Elapsed.TotalSeconds, availabilityTimeout));
+                    nextProgressSecond += 10;
+                }
+                Thread.Sleep(100);
+            }
+            if (stopping)
+            {
+                Diagnostic("cancelled", "Control wait was cancelled before a lighting frame was submitted.");
+                return 130;
+            }
+            if (!lampArray.IsConnected)
+            {
+                Diagnostic("device_disconnected", "The LampArray disconnected while waiting for ambient control.", "error");
+                return 9;
+            }
             if (!lampArray.IsAvailable)
             {
-                Diagnostic("ambient_control_unavailable", "Prioritize TSW2 RGB Ambient Probe in Dynamic Lighting background light control.", "error");
+                Diagnostic("ambient_control_unavailable", string.Format(CultureInfo.InvariantCulture,
+                    "Windows did not transfer ambient control within {0:F1} seconds. Keep the probe first in Background light control and retry after the priority change has settled.",
+                    availabilityWait.Elapsed.TotalSeconds), "error");
                 return 7;
             }
 
@@ -236,17 +278,12 @@ internal static class AmbientRgbProbe
             }
 
             Diagnostic("ambient_control_acquired", string.Format(CultureInfo.InvariantCulture,
-                "lamps={0}; supports_virtual_keys={1}; min_update_ms={2:F3}",
-                lampArray.LampCount, lampArray.SupportsVirtualKeys, lampArray.MinUpdateInterval.TotalMilliseconds));
+                "lamps={0}; supports_virtual_keys={1}; min_update_ms={2:F3}; wait_seconds={3:F3}",
+                lampArray.LampCount, lampArray.SupportsVirtualKeys, lampArray.MinUpdateInterval.TotalMilliseconds,
+                availabilityWait.Elapsed.TotalSeconds));
             controlAcquired = true;
             Diagnostic("focus_test_ready", "Switch focus to TSW2 or another application during the start delay and keep it focused.");
             Thread.Sleep(startDelay * 1000);
-
-            Console.CancelKeyPress += delegate(object sender, ConsoleCancelEventArgs eventArgs)
-            {
-                eventArgs.Cancel = true;
-                stopping = true;
-            };
 
             List<double> latencies = new List<double>();
             int errors = 0;
@@ -289,8 +326,7 @@ internal static class AmbientRgbProbe
             }
 
             process.Refresh();
-            double[] sorted = latencies.OrderBy(value => value).ToArray();
-            double p95 = sorted.Length == 0 ? 0 : sorted[Math.Min(sorted.Length - 1, (int)Math.Floor(sorted.Length * 0.95))];
+            double p95 = Percentile95(latencies);
             Diagnostic("run_complete", string.Format(CultureInfo.InvariantCulture,
                 "mode={0}; seconds={1:F2}; frames={2}; errors={3}; p95_ms={4:F3}; private_bytes_delta={5}",
                 mode, run.Elapsed.TotalSeconds, frames, errors, p95, process.PrivateMemorySize64 - initialPrivateBytes));

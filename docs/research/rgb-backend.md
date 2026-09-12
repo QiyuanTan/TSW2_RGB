@@ -1,6 +1,6 @@
 # ASUS RGB transport research
 
-**Status:** production transport blocked; do not use this document to claim support
+**Status:** LampArray selected; final ambient lifecycle validation pending
 
 **Research dates:** 2026-09-11 through 2026-09-12
 
@@ -8,9 +8,9 @@
 
 ## Recommendation
 
-No production transport is accepted for the reference environment. Windows `Windows.Devices.Lights.LampArray` remains the preferred standards-based candidate because it is an OS API over the open HID Lighting and Illumination standard, exposes per-lamp positions and virtual-key lookup, and requires no redistributed ASUS SDK binary. It cannot currently meet the product lifecycle because Windows does not grant background/ambient control while TSW2 has focus.
+Select Windows `Windows.Devices.Lights.LampArray` for the production ASUS transport. It is an OS API over the open HID Lighting and Illumination standard, exposes per-lamp positions and virtual-key lookup, and requires no redistributed ASUS SDK binary. Foreground and packaged ambient smoke tests now prove per-key control on the reference keyboard while TSW2 retains focus.
 
-ADR-002 is **blocked**, not accepted. Foreground per-key control and a ten-minute soak passed, but the correctly packaged and prioritized ambient probe remained unavailable. Armoury Crate also failed to gain background control. No ambient smoke, soak, reconnect, or restoration result was fabricated.
+The critical discovery is that WDL ownership transfer is asynchronous and unusually slow on the reference preview Windows build. The ambient probe initially observed `IsAvailable=false`, then acquired control after 65.643 seconds when allowed to wait. This selects the transport but does not finish issue #5: ambient soak, visible restoration, forced termination, and reconnect remain manual gates. No unrun result is inferred from foreground evidence.
 
 ## Reference environment
 
@@ -78,6 +78,8 @@ After registration, open **Settings > Personalization > Dynamic Lighting** and m
 .\tools\rgb-ambient-probe\bin\AmbientRgbProbe.exe --mode soak --duration-seconds 600 --frames-per-second 20 --start-delay-seconds 10 --accept-lighting-control
 ```
 
+Windows may apply a Background light control priority change asynchronously. Smoke and soak therefore wait up to 120 seconds for `IsAvailable` by default, emit a pending diagnostic every ten seconds, and report the measured handoff time. Use `--availability-timeout-seconds 1..600` to change this bounded wait; Ctrl+C cancels it without submitting a frame. The start delay begins only after control is actually granted.
+
 The ambient probe refuses to run without its exact package identity and fails if background availability is absent or lost. Remove the development registration after testing with:
 
 ```powershell
@@ -101,7 +103,9 @@ The 2026-09-12 capture on build `28120.3002` established all of the following si
 - LampArray VID `0B05`, PID `1ACE` was connected, enabled, at brightness 1.0, typed as a keyboard, and exposed 101 lamps with a 33 ms minimum update interval.
 - `IsAvailable` stayed false from the initial observation through the end of the 30.09-second sample, with no availability transition and no relevant Application or System event emitted.
 
-The ambient smoke test therefore submitted no frame and emitted `clear_skipped`. Armoury Crate independently failed to obtain background control when placed first with foreground override disabled. The evidence isolates the failure to Windows ambient arbitration or the ASUS provider on this preview environment; it does not distinguish which component is defective because neither exposed a diagnostic event. Rebooting, updating to a stable Windows build or newer ASUS firmware/provider, and repeating this exact capture are the bounded next experiments.
+The original ambient smoke test waited five seconds, submitted no frame, and emitted `clear_skipped`. Armoury Crate independently failed to obtain background control immediately when placed first with foreground override disabled, but later gained it after a delay. The revised probe then measured the same behavior directly: `IsAvailable` became true after 65.643 seconds. While TSW2 retained focus, the ten spatially distinct smoke keys displayed their expected colors for 15 seconds. The run submitted 264 frames with zero errors, p95 submission latency of 0.087 ms, and a private-byte delta of 864,256 bytes; it emitted `cleared` and `released` afterward.
+
+This result confirms delayed arbitration, not its undocumented internal cause. Short unavailability is not a terminal transport failure. A production adapter must discover devices continuously, retain a waiting state while unavailable, react to `AvailabilityChanged`, and begin or resume rendering only after ownership is granted. The diagnostic probe keeps a timeout so manual tests terminate predictably; the production coordinator should instead wait until cancellation, device removal, or application shutdown.
 
 ### ASUS Aura SDK 3.07.05
 
@@ -144,8 +148,8 @@ OpenRGB was inspected as the most credible compatible implementation. Its curren
 | Packaging/signing | Foreground probe is unpackaged; background control requires package identity/app extension and normal application-signing review | Vendor DLL is signed; redistribution rights remain unknown | No client SDK binary; service availability is an installer prerequisite | Shipping or deriving code requires GPL and driver/signing review |
 | Arbitration | Windows foreground/background priority | Exclusive `SwitchMode`/`ReleaseControl` | Explicit POST acquire and DELETE release | Likely conflicts with vendor software |
 | Cleanup/restore | Release reference; Windows selects next controller/autonomous mode | Explicit release, behavior unproven | Release passed; no device/frame was exposed | Device-specific and unproven |
-| Reference result | Foreground passed; correctly configured ambient lease denied | Hang/native crash; Armoury background control also unavailable | Initialization passed; inventory failed with HTTP 500 in both ASUS lighting modes | Exact device support not found |
-| Decision | **Blocked for production on reference environment** | Rejected | Rejected | Rejected |
+| Reference result | Foreground passed; ambient smoke passed after delayed handoff; ambient soak/lifecycle pending | Hang/native crash; restoration unproven | Initialization passed; inventory failed with HTTP 500 in both ASUS lighting modes | Exact device support not found |
+| Decision | **Selected; final lifecycle proof pending** | Rejected | Rejected | Rejected |
 
 ## Supported-device matrix
 
@@ -153,7 +157,7 @@ This matrix records evidence, not marketing compatibility. A device is supported
 
 | Device | Connection | Provider/API evidence | Per-key proof | Cleanup/reconnect proof | Status |
 |---|---|---|---|---|---|
-| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | LampArray foreground control passed; packaged ambient lease denied; Aura REST inventory returned HTTP 500 | LampArray foreground ten-key/600-second tests passed; game-focus paths blocked before a frame | LampArray foreground clear/release passed; Aura REST acquire/release passed without device inventory | **Unsupported for production on tested Windows/ASUS provider build** |
+| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | LampArray foreground and packaged ambient control passed after a 65.643-second handoff; Aura REST inventory returned HTTP 500 | Foreground ten-key/600-second tests and game-focused ambient ten-key smoke passed | Foreground clear/release passed; final ambient restoration, forced-exit, and reconnect checks pending | **Transport selected; final lifecycle validation pending** |
 | Any other ASUS keyboard | Any | Not evaluated | Not run | Not run | **Unsupported / unknown** |
 
 Firmware is deliberately `unknown` until it is copied from Armoury Crate during the manual run. No compatibility should be inferred for USB or Bluetooth from the receiver observation.
@@ -197,8 +201,9 @@ All unchecked items block acceptance and ADR promotion:
 - [x] Enable Dynamic Lighting manually and confirm `Discover` reports the ROG Omni Receiver serving the Scope II 96.
 - [x] Run the foreground `Smoke`; visually confirm all ten named, spatially distinct keys show their distinct expected colors.
 - [x] Run the foreground 600-second soak; record zero errors, acceptable p95 submission time, no obvious stutter, and no material private-byte growth.
-- [x] Register and prioritize the ambient probe with foreground override disabled; record that Windows denied `IsAvailable` before ambient smoke could submit a frame.
-- [ ] Repeat ambient smoke and the 600-second soak while TSW2 retains focus (blocked until Windows/ASUS grants an ambient lease).
+- [x] Register and prioritize the ambient probe with foreground override disabled; record the delayed 65.643-second ownership transfer.
+- [x] Run ambient smoke while TSW2 retains focus; confirm ten spatially distinct keys display their expected colors.
+- [ ] Run the ambient 600-second soak while TSW2 retains focus.
 - [ ] Confirm ambient `cleared` makes the test keys black before release.
 - [ ] Confirm ambient normal exit returns control to the expected Windows/Armoury lighting.
 - [ ] Terminate the probe process during a run and record restoration behavior.
