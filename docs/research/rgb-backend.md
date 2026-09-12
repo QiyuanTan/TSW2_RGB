@@ -113,24 +113,39 @@ The ambient smoke test therefore submitted no frame and emitted `clear_skipped`.
 
 Conclusion: this installed SDK build is not stable enough on the reference environment. Its redistributable license terms were not available in the installed product, so neither SDK binaries nor generated interop assemblies may be committed. Aura SDK is rejected for the MVP unless ASUS supplies current written licensing and the crash is independently resolved.
 
+### ASUS Aura Ready Game SDK REST API
+
+The separately documented local Game SDK service was tested as a bounded alternative that would not depend on Windows foreground/background arbitration. Its endpoint was reachable at the documented loopback address. A pre-initialization GET returned result `5` (`RESULT_NOT_INIT`), and the required SDK initialization POST then returned result `0`.
+
+After successful initialization, `GET /AuraSDK/AuraDevice` returned HTTP 500 rather than a device inventory. The result was identical with Dynamic Lighting off and Armoury Crate in standalone device-lighting mode, and with the keyboard set to **Aura Sync & Windows Dynamic Lighting**. In both attempts the documented DELETE returned result `0`; no color frame was submitted. This shows that the installed REST broker runs, but does not expose the reference keyboard as an addressable Game SDK device. It is rejected for this environment rather than inferred to work from successful initialization.
+
+The manual-only probe preserves this exact boundary:
+
+```powershell
+powershell.exe -NoProfile -File .\tests\rgb-aura-rest-probe\Run-Tests.ps1
+powershell.exe -NoProfile -File .\tools\rgb-aura-rest-probe\Invoke-AuraRestProbe.ps1 -Mode Discover -AcceptLightingControl
+```
+
+`Discover`, `Smoke`, and `Soak` all require explicit lighting-control consent because even inventory requires an SDK lease. The probe binds only to `127.0.0.1`, refuses to write unless discovery includes the documented external `Keyboard` device, emits structured diagnostics, and attempts release in `finally`. Its ten keys use ASUS's published key codes at the transport boundary; normalized core keys remain vendor-neutral.
+
 ### Direct HID / compatible libraries
 
 OpenRGB was inspected as the most credible compatible implementation. Its current source has ASUS Aura USB controllers, but no exact PID `1ACE` or Scope II 96 Wireless match was found. Adding a guessed packet protocol would violate the discovery evidence rules and risks conflict with Armoury Crate. Direct HID is rejected for the MVP.
 
 ## Comparison
 
-| Criterion | Windows LampArray | ASUS Aura SDK 3.07.05 | Direct HID/OpenRGB |
-|---|---|---|---|
-| Supported API | Microsoft-documented OS API | Vendor API, legacy COM | Community/reverse engineered |
-| Per-key model | Virtual-key-to-lamp indices | Per-key COM interfaces | Device-specific |
-| Distribution | No vendor binary bundled | License not established | GPL-2.0 OpenRGB; integration choice matters |
-| Required service | Windows Dynamic Lighting/device provider | ASUS Lighting Service | Usually direct device access |
-| x64 | Yes | Installed x64 binary | Yes, implementation dependent |
-| Packaging/signing | Foreground probe is unpackaged; background control requires package identity/app extension and normal application-signing review | Vendor DLL is signed; redistribution rights remain unknown | Shipping or deriving code requires GPL and driver/signing review |
-| Arbitration | Windows foreground/background priority | Exclusive `SwitchMode`/`ReleaseControl` | Likely conflicts with vendor software |
-| Cleanup/restore | Release reference; Windows selects next controller/autonomous mode | Explicit release, behavior unproven | Device-specific and unproven |
-| Reference result | Foreground passed; correctly configured ambient lease denied | Hang/native crash; Armoury background control also unavailable | Exact device support not found |
-| Decision | **Blocked for production on reference environment** | Rejected | Rejected |
+| Criterion | Windows LampArray | ASUS Aura SDK 3.07.05 | ASUS Game SDK REST | Direct HID/OpenRGB |
+|---|---|---|---|---|
+| Supported API | Microsoft-documented OS API | Vendor API, legacy COM | Vendor-documented localhost API | Community/reverse engineered |
+| Per-key model | Virtual-key-to-lamp indices | Per-key COM interfaces | Published ASUS key codes or coordinates | Device-specific |
+| Distribution | No vendor binary bundled | License not established | No client binary required; product terms still require review | GPL-2.0 OpenRGB; integration choice matters |
+| Required service | Windows Dynamic Lighting/device provider | ASUS Lighting Service | ASUS local Aura REST service | Usually direct device access |
+| x64 | Yes | Installed x64 binary | Process-independent HTTP | Yes, implementation dependent |
+| Packaging/signing | Foreground probe is unpackaged; background control requires package identity/app extension and normal application-signing review | Vendor DLL is signed; redistribution rights remain unknown | No client SDK binary; service availability is an installer prerequisite | Shipping or deriving code requires GPL and driver/signing review |
+| Arbitration | Windows foreground/background priority | Exclusive `SwitchMode`/`ReleaseControl` | Explicit POST acquire and DELETE release | Likely conflicts with vendor software |
+| Cleanup/restore | Release reference; Windows selects next controller/autonomous mode | Explicit release, behavior unproven | Release passed; no device/frame was exposed | Device-specific and unproven |
+| Reference result | Foreground passed; correctly configured ambient lease denied | Hang/native crash; Armoury background control also unavailable | Initialization passed; inventory failed with HTTP 500 in both ASUS lighting modes | Exact device support not found |
+| Decision | **Blocked for production on reference environment** | Rejected | Rejected | Rejected |
 
 ## Supported-device matrix
 
@@ -138,7 +153,7 @@ This matrix records evidence, not marketing compatibility. A device is supported
 
 | Device | Connection | Provider/API evidence | Per-key proof | Cleanup/reconnect proof | Status |
 |---|---|---|---|---|---|
-| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | Foreground control passed; packaged ambient lease denied | Foreground ten-key/600-second tests passed; ambient frame blocked | Foreground clear/release passed; ambient lifecycle unavailable | **Unsupported for production on tested Windows/provider build** |
+| ROG Strix Scope II 96 Wireless (PID `1ACE`) | ROG Omni Receiver, 2.4 GHz | LampArray foreground control passed; packaged ambient lease denied; Aura REST inventory returned HTTP 500 | LampArray foreground ten-key/600-second tests passed; game-focus paths blocked before a frame | LampArray foreground clear/release passed; Aura REST acquire/release passed without device inventory | **Unsupported for production on tested Windows/ASUS provider build** |
 | Any other ASUS keyboard | Any | Not evaluated | Not run | Not run | **Unsupported / unknown** |
 
 Firmware is deliberately `unknown` until it is copied from Armoury Crate during the manual run. No compatibility should be inferred for USB or Bluetooth from the receiver observation.
@@ -198,3 +213,6 @@ All unchecked items block acceptance and ADR promotion:
 - [USB-IF HID Lighting and Illumination usage page](https://usb.org/sites/default/files/hutrr84_-_lighting_and_illumination_page.pdf)
 - [Microsoft LampArray sample](https://github.com/microsoft/Windows-universal-samples/tree/main/Samples/LampArray)
 - [OpenRGB source](https://github.com/CalcProgrammer1/OpenRGB)
+- [ASUS Aura Ready Game SDK REST API](https://www.asus.com/microsite/aurareadygamesdk/game_sdk_restful.html)
+- [ASUS Aura Ready Game SDK result codes](https://www.asus.com/microsite/aurareadygamesdk/appendix_c.html)
+- [ASUS Aura Ready Game SDK key codes](https://www.asus.com/microsite/aurareadygamesdk/appendix_a.html)

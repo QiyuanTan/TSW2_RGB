@@ -31,6 +31,10 @@ Foreground control is insufficient for the product because TSW2 must retain focu
 
 Rejected on the reference machine because enumeration hung or crashed in isolated workers, restoration was not proven, and redistribution terms were not established. The probe released control separately after the failed experiment; no SDK binary is committed.
 
+### ASUS Aura Ready Game SDK REST API
+
+Rejected on the reference machine. The documented loopback service accepted SDK initialization and release with result `0`, but `GET /AuraSDK/AuraDevice` returned HTTP 500 in both standalone-device-lighting and Aura Sync + Windows Dynamic Lighting modes. The service therefore exposed no keyboard inventory to address. This API would avoid foreground arbitration if it worked, but a successful lease alone is not device proof. The isolated probe sends no frame unless discovery returns an external `Keyboard` device, and always attempts documented release after acquisition.
+
 ### Direct HID / OpenRGB-derived transport
 
 Rejected because the exact target PID was not found in inspected OpenRGB support and no authoritative protocol evidence was available. Reverse-engineering or copying packets before that evidence exists would create device-safety, vendor-service conflict, maintenance, and licensing risk.

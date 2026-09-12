@@ -106,4 +106,4 @@ Any issue that changes a boundary above updates this document and adds or amends
 
 ## RGB transport status
 
-ADR-002 blocks production ASUS backend work because Windows HID LampArray passed foreground testing but failed to grant required ambient/background control on the reference environment. No transport or device support claim is authorized. If a future environment passes the gate, normalized physical keys will be translated to Windows virtual keys and resolved to lamp indices only inside the adapter; core, profile, and rule code must never store LampArray indices.
+ADR-002 blocks production ASUS backend work because Windows HID LampArray passed foreground testing but failed to grant required ambient/background control on the reference environment. The alternative ASUS Game SDK REST service accepted a lease but failed device discovery, so it is not an accepted fallback. No transport or device support claim is authorized. If a future environment passes either gate, normalized physical keys must be translated to transport-specific keys or lamp indices only inside the adapter; core, profile, and rule code must never store either representation.
