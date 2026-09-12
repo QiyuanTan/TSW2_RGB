@@ -52,5 +52,8 @@ foreach ($diagnosticCode in @('ambient_control_waiting', 'ambient_control_pendin
         throw "Missing stable delayed-handoff diagnostic: $diagnosticCode"
     }
 }
+if ($probeSource -notmatch 'Ambient control was lost before cleanup') {
+    throw 'Cleanup diagnostics must distinguish a lost lease from a lease that was never acquired.'
+}
 
 Write-Output 'PASS: scripts, identity manifests, compilation, bounded handoff wait, and hardware-free self-test'

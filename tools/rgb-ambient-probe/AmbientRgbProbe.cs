@@ -353,7 +353,9 @@ internal static class AmbientRgbProbe
                         Diagnostic("clear_failed", exception.Message, "error");
                     }
                 }
-                else Diagnostic("clear_skipped", "No ambient control lease was acquired; no clear command was submitted.");
+                else Diagnostic("clear_skipped", controlAcquired
+                    ? "Ambient control was lost before cleanup; no clear command was submitted."
+                    : "No ambient control lease was acquired; no clear command was submitted.");
                 lampArray = null;
                 Diagnostic("released", "The LampArray reference was released.");
             }
